@@ -12,14 +12,21 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-// GetTopology returns the wired uplink of every device on the site, keyed by
-// upper-case MAC, as drawn by the controller's topology map. The web API is
-// the only place Omada exposes which port a switch or AP hangs off.
-func (c *Client) GetTopology() (map[string]*model.TopologyUplink, error) {
+// TopologyInfo is what the topology map knows about one device.
+type TopologyInfo struct {
+	Uplink       *model.TopologyUplink
+	ClientHealth *model.ClientHealth
+}
+
+// GetTopology returns the wired uplink and client-health split of every device
+// on the site, keyed by upper-case MAC, as drawn by the controller's topology
+// map. The web API is the only place Omada exposes which port a switch or AP
+// hangs off.
+func (c *Client) GetTopology() (map[string]*TopologyInfo, error) {
 	return c.session.FetchCached("web:topology", c.getTopologyFresh)
 }
 
-func (c *Client) getTopologyFresh() (map[string]*model.TopologyUplink, error) {
+func (c *Client) getTopologyFresh() (map[string]*TopologyInfo, error) {
 	omadaCID, siteID := c.ContextIDs()
 	url := fmt.Sprintf("%s/%s/api/v2/sites/%s/topology", c.session.Config.Host, omadaCID, siteID)
 	req, err := http.NewRequest("GET", url, nil)
@@ -47,9 +54,9 @@ func (c *Client) getTopologyFresh() (map[string]*model.TopologyUplink, error) {
 	return parseTopology(payload), nil
 }
 
-// applyTopology attaches the resolved uplink to each device in the inventory.
-func applyTopology(devices []model.DevicesInterface, uplinks map[string]*model.TopologyUplink) {
-	if len(uplinks) == 0 {
+// applyTopology attaches the resolved uplink and client health to each device.
+func applyTopology(devices []model.DevicesInterface, infos map[string]*TopologyInfo) {
+	if len(infos) == 0 {
 		return
 	}
 	for _, d := range devices {
@@ -57,21 +64,30 @@ func applyTopology(devices []model.DevicesInterface, uplinks map[string]*model.T
 		if !ok {
 			continue
 		}
-		if up, found := uplinks[strings.ToUpper(dev.GetMac())]; found {
-			dev.SetTopology(up)
+		if info, found := infos[strings.ToUpper(dev.GetMac())]; found {
+			if info.Uplink != nil {
+				dev.SetTopology(info.Uplink)
+			}
+			if info.ClientHealth != nil {
+				dev.SetClientHealth(info.ClientHealth)
+			}
 		}
 	}
 }
 
-// parseTopology walks the successor tree and records, for every child, the
-// parent and both port ends. Nodes without a MAC (client groups) are skipped.
-func parseTopology(payload topologyResponse) map[string]*model.TopologyUplink {
-	result := map[string]*model.TopologyUplink{}
+// parseTopology walks the successor tree and records, for every node with a
+// MAC, its client-health split and (for children) the parent and both port ends.
+func parseTopology(payload topologyResponse) map[string]*TopologyInfo {
+	result := map[string]*TopologyInfo{}
 	var walk func(node topologyNode, parent *topologyNode)
 	walk = func(node topologyNode, parent *topologyNode) {
-		if parent != nil && node.Mac != "" {
-			if up := node.uplink(parent); up != nil {
-				result[strings.ToUpper(node.Mac)] = up
+		if node.Mac != "" {
+			info := &TopologyInfo{ClientHealth: node.ClientHealth}
+			if parent != nil {
+				info.Uplink = node.uplink(parent)
+			}
+			if info.Uplink != nil || info.ClientHealth != nil {
+				result[strings.ToUpper(node.Mac)] = info
 			}
 		}
 		for _, child := range node.Successors {
@@ -91,10 +107,11 @@ type topologyResponse struct {
 }
 
 type topologyNode struct {
-	Type       string         `json:"type"`
-	Name       string         `json:"name"`
-	Mac        string         `json:"mac"`
-	Successors []topologyNode `json:"successors"`
+	Type         string              `json:"type"`
+	Name         string              `json:"name"`
+	Mac          string              `json:"mac"`
+	Successors   []topologyNode      `json:"successors"`
+	ClientHealth *model.ClientHealth `json:"clientHealth"`
 	// switch / gateway children
 	WiredUpInfo *topologyLink `json:"wiredUpInfo"`
 	UpperPort   *topologyLink `json:"upperPort"`

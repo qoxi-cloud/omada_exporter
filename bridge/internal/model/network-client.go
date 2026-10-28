@@ -28,6 +28,17 @@ type NetworkClient struct {
 	Port        int8   `json:"port"`
 	LagId       int8   `json:"lagId"`
 
+	// qoxi: extra client context from the clients endpoint
+	NetworkName string  `json:"networkName"`
+	HealthScore float64 `json:"healthScore"`
+	Uptime      float64 `json:"uptime"`
+	LastSeen    int64   `json:"lastSeen"`
+	Channel     int32   `json:"channel"`
+	RadioId     int8    `json:"radioId"`
+	PowerSave   bool    `json:"powerSave"`
+	Guest       bool    `json:"guest"`
+	Blocked     bool    `json:"blocked"`
+
 	Wireless bool   `json:"wireless"`
 	ApMac    string `json:"apMac"`
 	ApName   string `json:"apName"`

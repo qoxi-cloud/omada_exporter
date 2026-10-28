@@ -32,7 +32,7 @@ func (c *DeviceCollector) collectSwitch(ch chan<- prometheus.Metric, sw *model.S
 		poeLabels := append(labels,
 			sw.GetPoeSupport(),
 			fmt.Sprintf("%d", sw.PortNumber),
-			fmt.Sprintf("%d", sw.TotalPower),
+			fmt.Sprintf("%g", sw.GetTotalPowerWatts()),
 		)
 		ch <- prometheus.MustNewConstMetric(c.omadaDevicePoeRemainWatts, prometheus.GaugeValue, sw.PoeRemain, poeLabels...)
 	}

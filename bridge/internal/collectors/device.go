@@ -1,6 +1,8 @@
 package collector
 
 import (
+	"fmt"
+
 	"github.com/RCooLeR/omada_exporter/internal/model"
 	"github.com/RCooLeR/omada_exporter/internal/omada"
 	"github.com/prometheus/client_golang/prometheus"
@@ -17,6 +19,7 @@ type DeviceCollector struct {
 	omadaDeviceUpload        *prometheus.Desc
 	omadaDeviceTemp          *prometheus.Desc
 	omadaDeviceUplinkSpeed   *prometheus.Desc
+	omadaDeviceHealthScore   *prometheus.Desc
 	//ports
 	omadaPortLinkStatus    *prometheus.Desc
 	omadaPortPowerWatts    *prometheus.Desc
@@ -63,6 +66,7 @@ func (c *DeviceCollector) Describe(ch chan<- *prometheus.Desc) {
 	ch <- c.omadaDeviceUpload
 	ch <- c.omadaDeviceTemp
 	ch <- c.omadaDeviceUplinkSpeed
+	ch <- c.omadaDeviceHealthScore
 	if c.trackPortMetrics() {
 		//ports
 		ch <- c.omadaPortLinkStatus
@@ -152,6 +156,27 @@ func (c *DeviceCollector) collectDevice(ch chan<- prometheus.Metric, device mode
 	ch <- prometheus.MustNewConstMetric(c.omadaDeviceNeedUpgrade, prometheus.GaugeValue, boolFloat64(device.GetNeedUpgrade()), labels...)
 	ch <- prometheus.MustNewConstMetric(c.omadaDeviceDownload, prometheus.CounterValue, device.GetDownload(), labels...)
 	ch <- prometheus.MustNewConstMetric(c.omadaDeviceUpload, prometheus.CounterValue, device.GetUpload(), labels...)
+	health := device.GetClientHealth()
+	if health == nil {
+		health = &model.ClientHealth{}
+	}
+	fan, loops, blocks := "", "", ""
+	if sw, ok := device.(*model.Switch); ok {
+		fan = fmt.Sprintf("%d", sw.FanStatus)
+		loops = fmt.Sprintf("%d", sw.LoopbackNum)
+		blocks = fmt.Sprintf("%d", sw.BlockNum)
+	}
+	healthLabels := append(append([]string{}, labels...),
+		fmt.Sprintf("%d", health.Good),
+		fmt.Sprintf("%d", health.Fair),
+		fmt.Sprintf("%d", health.Poor),
+		fmt.Sprintf("%d", health.NoData),
+		device.GetSerial(),
+		fan,
+		loops,
+		blocks,
+	)
+	ch <- prometheus.MustNewConstMetric(c.omadaDeviceHealthScore, prometheus.GaugeValue, device.GetHealthScore(), healthLabels...)
 	if up := device.GetTopology(); up != nil {
 		uplinkLabels := append(append([]string{}, labels...),
 			up.ParentMac,
@@ -246,6 +271,16 @@ func NewDeviceCollector(apiClient *omada.Client) *DeviceCollector {
 		"uplink_lag_id",
 		"uplink_lag_ports",
 	)
+	healthLabels := append(append([]string{}, deviceLabels...),
+		"client_health_good",
+		"client_health_fair",
+		"client_health_poor",
+		"client_health_no_data",
+		"device_serial",
+		"device_fan_status",
+		"device_loopback_num",
+		"device_block_num",
+	)
 	gatewayWanLabels := append(deviceLabels,
 		"port",
 		"name",
@@ -302,6 +337,19 @@ func NewDeviceCollector(apiClient *omada.Client) *DeviceCollector {
 		"device_wp6g_mode",
 		"device_wp6g_tx_max_rate",
 		"device_wp6g_band_width",
+		// qoxi
+		"device_wp2g_channel",
+		"device_wp2g_tx_power",
+		"device_wp2g_clients",
+		"device_wp5g_channel",
+		"device_wp5g_tx_power",
+		"device_wp5g_clients",
+		"device_wp5g2_channel",
+		"device_wp5g2_tx_power",
+		"device_wp5g2_clients",
+		"device_wp6g_channel",
+		"device_wp6g_tx_power",
+		"device_wp6g_clients",
 	)
 
 	return &DeviceCollector{
@@ -341,6 +389,11 @@ func NewDeviceCollector(apiClient *omada.Client) *DeviceCollector {
 		omadaDeviceUplinkSpeed: prometheus.NewDesc("omada_device_uplink_link_speed_mbps",
 			"Negotiated speed of the device's wired uplink from the controller topology map; labels name the parent device and both port ends.",
 			uplinkLabels,
+			nil,
+		),
+		omadaDeviceHealthScore: prometheus.NewDesc("omada_device_health_score",
+			"Controller device health score (0-10); labels carry the good/fair/poor client split, serial, fan status and STP loop/block counts.",
+			healthLabels,
 			nil,
 		),
 		omadaDeviceTemp: prometheus.NewDesc("omada_device_temp",

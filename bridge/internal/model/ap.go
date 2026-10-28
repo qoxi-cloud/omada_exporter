@@ -15,10 +15,14 @@ type AccessPoint struct {
 		LanPortsNum uint8 `json:"lanPortsNum"`
 	} `json:"deviceMisc"`
 	//Fields
-	Wp2GHz   *Radio `json:"wp2g,omitempty"`
-	Wp5GHz   *Radio `json:"wp5g,omitempty"`
-	Wp5GHz_2 *Radio `json:"wp5g2,omitempty"`
-	Wp6GHz   *Radio `json:"wp6g,omitempty"`
+	ClientNum2g  int    `json:"clientNum2g"`
+	ClientNum5g  int    `json:"clientNum5g"`
+	ClientNum5g2 int    `json:"clientNum5g2"`
+	ClientNum6g  int    `json:"clientNum6g"`
+	Wp2GHz       *Radio `json:"wp2g,omitempty"`
+	Wp5GHz       *Radio `json:"wp5g,omitempty"`
+	Wp5GHz_2     *Radio `json:"wp5g2,omitempty"`
+	Wp6GHz       *Radio `json:"wp6g,omitempty"`
 }
 
 // AccessPointPort represents runtime status and PoE details for an access point LAN port.

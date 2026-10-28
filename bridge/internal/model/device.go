@@ -28,8 +28,21 @@ type Device struct {
 	RxRate         float64 `json:"rxRate"`
 	TxRate         float64 `json:"txRate"`
 	Temp           float64 `json:"temp"`
+	// qoxi: controller health score (0-10) and serial from the device list
+	HealthScore float64 `json:"healthScore"`
+	Serial      string  `json:"sn"`
 	// Topology is filled from the controller topology map (web API), not from the device list.
 	Topology *TopologyUplink `json:"-"`
+	// ClientHealth is the good/fair/poor split of this device's clients from the topology map.
+	ClientHealth *ClientHealth `json:"-"`
+}
+
+// ClientHealth is Omada's per-device client health summary.
+type ClientHealth struct {
+	Good   int `json:"good"`
+	Fair   int `json:"fair"`
+	Poor   int `json:"poor"`
+	NoData int `json:"noData"`
 }
 
 type DeviceInterface interface {
@@ -54,6 +67,10 @@ type DeviceInterface interface {
 	GetTemp() float64
 	GetTopology() *TopologyUplink
 	SetTopology(*TopologyUplink)
+	GetHealthScore() float64
+	GetSerial() string
+	GetClientHealth() *ClientHealth
+	SetClientHealth(*ClientHealth)
 }
 
 // GetType returns the Omada device type used to distinguish concrete models.
@@ -169,6 +186,18 @@ func (s *Device) GetTopology() *TopologyUplink { return s.Topology }
 
 // SetTopology stores the wired uplink resolved from the topology map.
 func (s *Device) SetTopology(t *TopologyUplink) { s.Topology = t }
+
+// GetHealthScore returns the controller's 0-10 device health score.
+func (s *Device) GetHealthScore() float64 { return s.HealthScore }
+
+// GetSerial returns the serial number when the device list reports one.
+func (s *Device) GetSerial() string { return s.Serial }
+
+// GetClientHealth returns the good/fair/poor client split from the topology map.
+func (s *Device) GetClientHealth() *ClientHealth { return s.ClientHealth }
+
+// SetClientHealth stores the client health split resolved from the topology map.
+func (s *Device) SetClientHealth(h *ClientHealth) { s.ClientHealth = h }
 
 // GetVersionWithUpgrade appends an upgrade marker when Omada reports a pending upgrade.
 func (s *Device) GetVersionWithUpgrade() string {

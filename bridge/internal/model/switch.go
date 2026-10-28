@@ -11,8 +11,20 @@ type Switch struct {
 	PoeSupport bool  `json:"poeSupport"`
 	PortNumber int8  `json:"portNum"`
 	TotalPower int32 `json:"totalPower"`
+	// Omada 6.x lists report the PoE budget as poeTotalPower
+	PoeTotalPower float64 `json:"poeTotalPower"`
+	LoopbackNum   int     `json:"loopbackNum"`
+	BlockNum      int     `json:"blockNum"`
 	//Fields
 	PoeRemain float64 `json:"poeRemain"`
+}
+
+// GetTotalPowerWatts returns the PoE budget, preferring the 6.x poeTotalPower field.
+func (sw *Switch) GetTotalPowerWatts() float64 {
+	if sw.PoeTotalPower > 0 {
+		return sw.PoeTotalPower
+	}
+	return float64(sw.TotalPower)
 }
 
 // GetPoeSupport converts the PoE support flag to a Yes or No label.

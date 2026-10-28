@@ -3,6 +3,7 @@ package collector
 import (
 	"fmt"
 	"strconv"
+	"time"
 
 	"github.com/RCooLeR/omada_exporter/internal/model"
 	"github.com/RCooLeR/omada_exporter/internal/omada"
@@ -39,6 +40,8 @@ func clientMetricLabels(item model.NetworkClient, site, siteID string) []string 
 	apName := ""
 	wifiMode := ""
 	ssid := ""
+	channel := ""
+	radioID := ""
 
 	if item.Wireless {
 		switchMac = ""
@@ -47,6 +50,10 @@ func clientMetricLabels(item model.NetworkClient, site, siteID string) []string 
 		apName = item.ApName
 		wifiMode = item.GetWifiMode()
 		ssid = item.Ssid
+		if item.Channel > 0 {
+			channel = fmt.Sprintf("%d", item.Channel)
+		}
+		radioID = fmt.Sprintf("%d", item.RadioId)
 	}
 
 	return []string{
@@ -74,6 +81,15 @@ func clientMetricLabels(item model.NetworkClient, site, siteID string) []string 
 		ssid,
 		site,
 		siteID,
+		item.NetworkName,
+		fmt.Sprintf("%g", item.HealthScore),
+		fmt.Sprintf("%.0f", item.Uptime),
+		lastSeenRFC3339(item.LastSeen),
+		channel,
+		radioID,
+		strconv.FormatBool(item.PowerSave),
+		strconv.FormatBool(item.Guest),
+		strconv.FormatBool(item.Blocked),
 	}
 }
 
@@ -178,6 +194,16 @@ func NewClientCollector(apiClient *omada.Client) *clientCollector {
 		"ssid",
 		"site",
 		"site_id",
+		// qoxi: attributes only (entity identity is metric + mac)
+		"network_name",
+		"health_score",
+		"uptime_seconds",
+		"last_seen",
+		"channel",
+		"radio_id",
+		"power_save",
+		"guest",
+		"blocked",
 	}
 
 	return &clientCollector{
@@ -243,4 +269,12 @@ func NewClientCollector(apiClient *omada.Client) *clientCollector {
 
 		client: apiClient,
 	}
+}
+
+// lastSeenRFC3339 renders Omada's epoch-millisecond lastSeen as RFC 3339 UTC, or "" when unset.
+func lastSeenRFC3339(ms int64) string {
+	if ms <= 0 {
+		return ""
+	}
+	return time.UnixMilli(ms).UTC().Format(time.RFC3339)
 }

@@ -98,6 +98,19 @@ func (c *DeviceCollector) collectAccessPoint(ch chan<- prometheus.Metric, ap *mo
 		)
 	}
 
+	for _, band := range []struct {
+		radio   *model.Radio
+		clients int
+	}{
+		{ap.Wp2GHz, ap.ClientNum2g}, {ap.Wp5GHz, ap.ClientNum5g}, {ap.Wp5GHz_2, ap.ClientNum5g2}, {ap.Wp6GHz, ap.ClientNum6g},
+	} {
+		if band.radio != nil {
+			labels = append(labels, band.radio.Channel(), fmt.Sprintf("%d", band.radio.TxPower), fmt.Sprintf("%d", band.clients))
+		} else {
+			labels = append(labels, "", "", "")
+		}
+	}
+
 	ch <- prometheus.MustNewConstMetric(c.omadaDeviceTxRate, prometheus.GaugeValue, ap.TxRate, deviceLabels...)
 	ch <- prometheus.MustNewConstMetric(c.omadaDeviceRxRate, prometheus.GaugeValue, ap.RxRate, deviceLabels...)
 	if c.trackPortMetrics() {

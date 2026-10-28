@@ -3,13 +3,15 @@ package omada
 import (
 	"encoding/json"
 	"testing"
+
+	"github.com/RCooLeR/omada_exporter/internal/model"
 )
 
 // Trimmed copy of a real OC220 6.x topology payload: gateway → switch (LAN2 ↔
 // port 1) → switch over LAG (ports 5,6 both ends) → AP on port 1; controller
 // hangs off the second switch and has no MAC-keyed inventory entry we care about.
 const topologySample = `{"errorCode":0,"result":{"topologyArray":[
- {"type":"gateway","name":"ER8411","mac":"5C-62-8B-31-44-FF","successors":[
+ {"type":"gateway","name":"ER8411","mac":"5C-62-8B-31-44-FF","clientHealth":{"good":2,"fair":0,"poor":0,"noData":0},"successors":[
   {"type":"switch","name":"SX3008F","mac":"60-83-E7-82-17-26",
    "wiredUpInfo":{"port":{"port":"1"},"upLinkPort":{"port":"2","name":"LAN2"},"linkSpeed":5,"duplex":2},
    "successors":[
@@ -33,26 +35,34 @@ func TestParseTopology(t *testing.T) {
 	}
 	got := parseTopology(payload)
 
-	sw := got["60-83-E7-82-17-26"]
+	flat := map[string]*model.TopologyUplink{}
+	for mac, info := range got {
+		flat[mac] = info.Uplink
+	}
+	if gw := got["5C-62-8B-31-44-FF"]; gw == nil || gw.ClientHealth == nil || gw.ClientHealth.Good != 2 {
+		t.Fatalf("gateway client health = %+v", gw)
+	}
+	got2 := flat
+	sw := got2["60-83-E7-82-17-26"]
 	if sw == nil || sw.ParentName != "ER8411" || sw.ParentPort != "2" || sw.LocalPort != "1" || sw.LinkSpeedMbps != 10000 {
 		t.Fatalf("SX3008F uplink = %+v", sw)
 	}
-	lag := got["AC-15-A2-2D-83-0A"]
+	lag := got2["AC-15-A2-2D-83-0A"]
 	if lag == nil || lag.ParentName != "SX3008F" || lag.ParentPort != "LAG 1" || lag.LagID != "1" || lag.LagPorts != "5,6" {
 		t.Fatalf("SX3206HPP uplink = %+v", lag)
 	}
-	ap := got["10-5A-95-F6-4F-A9"]
+	ap := got2["10-5A-95-F6-4F-A9"]
 	if ap == nil || ap.ParentName != "SX3206HPP" || ap.ParentPort != "1" || ap.LinkSpeedMbps != 2500 || ap.LocalPort != "" {
 		t.Fatalf("AP-1 uplink = %+v", ap)
 	}
-	sg := got["7C-F1-7E-17-0D-3B"]
+	sg := got2["7C-F1-7E-17-0D-3B"]
 	if sg == nil || sg.ParentPort != "LAG 2" || sg.LagPorts != "17,18" {
 		t.Fatalf("SG3218XP uplink = %+v", sg)
 	}
-	if ctl := got["8C-86-DD-35-72-79"]; ctl == nil || ctl.ParentName != "SG3218XP" || ctl.ParentPort != "1" {
+	if ctl := got2["8C-86-DD-35-72-79"]; ctl == nil || ctl.ParentName != "SG3218XP" || ctl.ParentPort != "1" {
 		t.Fatalf("controller uplink = %+v", ctl)
 	}
-	if _, ok := got["5C-62-8B-31-44-FF"]; ok {
-		t.Fatalf("gateway must not have an uplink")
+	if up := got2["5C-62-8B-31-44-FF"]; up != nil {
+		t.Fatalf("gateway must not have an uplink, got %+v", up)
 	}
 }
