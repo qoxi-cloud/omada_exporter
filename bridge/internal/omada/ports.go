@@ -87,41 +87,57 @@ func (c *Client) GetApPorts(ap *model.AccessPoint) error {
 // GetGatewayPorts fetches gateway port telemetry, derives each port's maximum
 // supported speed from the capability list, and stores the result on gw.
 func (c *Client) GetGatewayPorts(gw *model.Gateway) error {
-	omadaCID, siteID := c.ContextIDs()
-	url := fmt.Sprintf("%s/%s/api/v2/sites/%s/gateways/%s", c.session.Config.Host, omadaCID, siteID, gw.Mac)
-	req, err := http.NewRequest("GET", url, nil)
+	portdata, err := c.getGatewayDetail(gw.Mac)
 	if err != nil {
 		return err
 	}
-
-	resp, err := c.session.MakeLoggedInRequest(req)
-	if err != nil {
-		return err
-	}
-
-	defer resp.Body.Close()
-	body, err := session.ReadResponseBody(resp, "gateway ports")
-	if err != nil {
-		return err
-	}
-	log.Info().Msg(fmt.Sprintf("Received data from ports endpoint for %s", gw.Mac))
-	log.Debug().Bytes("data", body).Msg("Received data from ports endpoint")
-	if err := session.ValidateAPIResponse(body, "gateway ports"); err != nil {
-		return err
-	}
-
-	portdata := gatewayResponse{}
-	if err := json.Unmarshal(body, &portdata); err != nil {
-		return err
-	}
-	for i, p := range portdata.Result.Ports {
-		portdata.Result.Ports[i].MaxSpeed = portdata.GetMaxLinkSpeed(p.Port)
+	ports := make([]model.GatewayPort, len(portdata.Result.Ports))
+	copy(ports, portdata.Result.Ports)
+	for i, p := range ports {
+		ports[i].MaxSpeed = portdata.GetMaxLinkSpeed(p.Port)
 	}
 	gw.Temp = portdata.Result.Temp
-	gw.Ports = portdata.Result.Ports
+	gw.Ports = ports
 	gw.RxRate = portdata.Result.RxRate
 	gw.TxRate = portdata.Result.TxRate
+	gw.VirtualWans = portdata.virtualWans()
+	gw.Wans = mergeVirtualWans(gw.Wans, gw.Ports, gw.VirtualWans)
 	return nil
+}
+
+// getGatewayDetail fetches the Web API gateway detail (ports, virtual WANs,
+// temperature) once per cache window; the ISP collector reuses it.
+func (c *Client) getGatewayDetail(mac string) (*gatewayResponse, error) {
+	return c.session.FetchCached("web:gateway:"+mac, func() (*gatewayResponse, error) {
+		omadaCID, siteID := c.ContextIDs()
+		url := fmt.Sprintf("%s/%s/api/v2/sites/%s/gateways/%s", c.session.Config.Host, omadaCID, siteID, mac)
+		req, err := http.NewRequest("GET", url, nil)
+		if err != nil {
+			return nil, err
+		}
+
+		resp, err := c.session.MakeLoggedInRequest(req)
+		if err != nil {
+			return nil, err
+		}
+
+		defer resp.Body.Close()
+		body, err := session.ReadResponseBody(resp, "gateway ports")
+		if err != nil {
+			return nil, err
+		}
+		log.Info().Msg(fmt.Sprintf("Received data from ports endpoint for %s", mac))
+		log.Debug().Bytes("data", body).Msg("Received data from ports endpoint")
+		if err := session.ValidateAPIResponse(body, "gateway ports"); err != nil {
+			return nil, err
+		}
+
+		portdata := &gatewayResponse{}
+		if err := json.Unmarshal(body, portdata); err != nil {
+			return nil, err
+		}
+		return portdata, nil
+	})
 }
 
 // portResponse wraps the Web API payload returned for switch details.
@@ -142,13 +158,21 @@ type gatewayResponse struct {
 		TxRate      float64             `json:"txRate"`
 		PortConfigs []gatewayPortConfig `json:"portConfigs"`
 		Ports       []model.GatewayPort `json:"portStats"`
+		VirtualWans []model.VirtualWan  `json:"virtualWanStats"`
 	} `json:"result"`
 }
 
 // gatewayPortConfig stores per-port capability data used to derive max speed.
 type gatewayPortConfig struct {
-	Port     int8      `json:"port"`
-	PortCaps []PortCap `json:"portCap"`
+	Port               int8       `json:"port"`
+	PortCaps           []PortCap  `json:"portCap"`
+	AvailablePvidNames []pvidName `json:"availablePvidNames"`
+}
+
+// pvidName is one VLAN a WAN port can carry; pvId != 0 entries are virtual WANs.
+type pvidName struct {
+	PvId   int    `json:"pvId"`
+	PvName string `json:"pvName"`
 }
 
 // PortCap represents one advertised speed capability for a gateway port.

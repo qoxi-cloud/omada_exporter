@@ -5,9 +5,10 @@ import "fmt"
 // Gateway represents an Omada gateway with WAN, ISP, and port telemetry.
 type Gateway struct {
 	Device
-	Wans  []Wan
-	Isps  []Isp
-	Ports []GatewayPort
+	Wans        []Wan
+	Isps        []Isp
+	Ports       []GatewayPort
+	VirtualWans []VirtualWan
 }
 
 // GatewayPort represents runtime metrics and capabilities for a gateway port.

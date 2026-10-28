@@ -52,12 +52,24 @@ func (c *Client) getIspFresh() ([]model.Isp, error) {
 	}
 	var result []model.Isp
 	for _, d := range ispdata.Result.Data {
+		var rows []model.Isp
 		for _, isp := range d.IspInfo.IspArr {
 			isp.GatewayName = d.GatewayName
 			isp.GatewayMac = d.GatewayMac
 			isp.GatewayStatus = d.GatewayStatus
-			result = append(result, isp)
+			rows = append(rows, isp)
 		}
+		// Virtual WANs (Omada 6.x) are only visible on the Web API gateway detail.
+		if d.GatewayMac == "" {
+			result = append(result, rows...)
+			continue
+		}
+		if detail, err := c.getGatewayDetail(d.GatewayMac); err != nil {
+			log.Warn().Err(err).Str("gateway", d.GatewayMac).Msg("ISP: could not read gateway detail for virtual WANs")
+		} else {
+			rows = mergeVirtualIsps(rows, detail.virtualWans(), d.GatewayName, d.GatewayMac, d.GatewayStatus)
+		}
+		result = append(result, rows...)
 	}
 
 	return result, nil
