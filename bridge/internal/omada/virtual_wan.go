@@ -52,7 +52,7 @@ func linkSpeedOf(ports []model.GatewayPort, port int8) int8 {
 // their own) and appends one WAN row per virtual WAN with a synthetic port
 // number, so Home Assistant and the cards show the real uplinks. Physical WAN
 // ports without virtual WANs are untouched and keep appearing automatically.
-func mergeVirtualWans(wans []model.Wan, ports []model.GatewayPort, vws []model.VirtualWan) []model.Wan {
+func mergeVirtualWans(wans []model.Wan, ports []model.GatewayPort, vws []model.VirtualWan, latencyMs map[string]float64) []model.Wan {
 	if len(vws) == 0 {
 		return wans
 	}
@@ -64,7 +64,9 @@ func mergeVirtualWans(wans []model.Wan, ports []model.GatewayPort, vws []model.V
 		}
 	}
 	for i, vw := range vws {
-		out = append(out, vw.AsWan(model.VirtualWanPortBase+int8(i), linkSpeedOf(ports, vw.ParentPort)))
+		w := vw.AsWan(model.VirtualWanPortBase+int8(i), linkSpeedOf(ports, vw.ParentPort))
+		w.Latency = latencyMs[vw.Name]
+		out = append(out, w)
 	}
 	return out
 }

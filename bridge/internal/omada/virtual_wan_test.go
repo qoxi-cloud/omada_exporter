@@ -42,7 +42,7 @@ func TestVirtualWansResolveParentPort(t *testing.T) {
 func TestMergeVirtualWansHidesTrunkAndKeepsOtherPorts(t *testing.T) {
 	d := fixtureDetail(t)
 	wans := []model.Wan{{Port: 1, Name: "SFP+ WAN1", Status: 1, InternetState: 1}, {Port: 4, Name: "WAN/LAN4", Status: 1}}
-	merged := mergeVirtualWans(wans, d.Result.Ports, d.virtualWans())
+	merged := mergeVirtualWans(wans, d.Result.Ports, d.virtualWans(), map[string]float64{"LinkCom_sfp2": 1.5})
 	names := map[string]model.Wan{}
 	for _, w := range merged {
 		names[w.Name] = w
@@ -54,7 +54,7 @@ func TestMergeVirtualWansHidesTrunkAndKeepsOtherPorts(t *testing.T) {
 		t.Errorf("physical WAN without virtual WANs must stay: %+v", merged)
 	}
 	lc, ok := names["LinkCom_sfp2"]
-	if !ok || lc.Port != model.VirtualWanPortBase || lc.Ip != "195.72.145.224" || lc.InternetState != 1 || lc.LinkSpeed != 5 {
+	if !ok || lc.Port != model.VirtualWanPortBase || lc.Ip != "195.72.145.224" || lc.InternetState != 1 || lc.LinkSpeed != 5 || lc.Latency != 1.5 {
 		t.Errorf("LinkCom row wrong: %+v", lc)
 	}
 	if kp := names["Kopiyka_sfp3"]; kp.Port != model.VirtualWanPortBase+1 || kp.InternetState != 0 {
@@ -64,7 +64,7 @@ func TestMergeVirtualWansHidesTrunkAndKeepsOtherPorts(t *testing.T) {
 
 func TestMergeVirtualWansNoVirtualWansIsNoop(t *testing.T) {
 	wans := []model.Wan{{Port: 1, Name: "WAN1"}}
-	if got := mergeVirtualWans(wans, nil, nil); len(got) != 1 || got[0].Name != "WAN1" {
+	if got := mergeVirtualWans(wans, nil, nil, nil); len(got) != 1 || got[0].Name != "WAN1" {
 		t.Errorf("unexpected change: %+v", got)
 	}
 }

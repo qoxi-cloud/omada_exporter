@@ -101,7 +101,7 @@ func (c *Client) GetGatewayPorts(gw *model.Gateway) error {
 	gw.RxRate = portdata.Result.RxRate
 	gw.TxRate = portdata.Result.TxRate
 	gw.VirtualWans = portdata.virtualWans()
-	gw.Wans = mergeVirtualWans(gw.Wans, gw.Ports, gw.VirtualWans)
+	gw.Wans = mergeVirtualWans(gw.Wans, gw.Ports, gw.VirtualWans, pingVirtualWans(gw.VirtualWans))
 	return nil
 }
 
