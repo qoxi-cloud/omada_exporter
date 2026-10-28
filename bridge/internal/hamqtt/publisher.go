@@ -887,6 +887,10 @@ snapshotComplete:
 			p.lastClientTrackers[id] = tracker
 			if !attributes.LastSeen.IsZero() {
 				p.clientLastSeen[id] = attributes.LastSeen
+			} else if _, known := p.clientLastSeen[id]; !known {
+				// no last_seen in the retained attributes: count the retention
+				// window from this restart instead of keeping the tracker forever
+				p.clientLastSeen[id] = time.Now().UTC()
 			}
 		}
 	}
