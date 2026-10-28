@@ -16,6 +16,7 @@ type DeviceCollector struct {
 	omadaDeviceDownload      *prometheus.Desc
 	omadaDeviceUpload        *prometheus.Desc
 	omadaDeviceTemp          *prometheus.Desc
+	omadaDeviceUplinkSpeed   *prometheus.Desc
 	//ports
 	omadaPortLinkStatus    *prometheus.Desc
 	omadaPortPowerWatts    *prometheus.Desc
@@ -61,6 +62,7 @@ func (c *DeviceCollector) Describe(ch chan<- *prometheus.Desc) {
 	ch <- c.omadaDeviceDownload
 	ch <- c.omadaDeviceUpload
 	ch <- c.omadaDeviceTemp
+	ch <- c.omadaDeviceUplinkSpeed
 	if c.trackPortMetrics() {
 		//ports
 		ch <- c.omadaPortLinkStatus
@@ -150,6 +152,18 @@ func (c *DeviceCollector) collectDevice(ch chan<- prometheus.Metric, device mode
 	ch <- prometheus.MustNewConstMetric(c.omadaDeviceNeedUpgrade, prometheus.GaugeValue, boolFloat64(device.GetNeedUpgrade()), labels...)
 	ch <- prometheus.MustNewConstMetric(c.omadaDeviceDownload, prometheus.CounterValue, device.GetDownload(), labels...)
 	ch <- prometheus.MustNewConstMetric(c.omadaDeviceUpload, prometheus.CounterValue, device.GetUpload(), labels...)
+	if up := device.GetTopology(); up != nil {
+		uplinkLabels := append(append([]string{}, labels...),
+			up.ParentMac,
+			up.ParentName,
+			up.ParentType,
+			up.ParentPort,
+			up.LocalPort,
+			up.LagID,
+			up.LagPorts,
+		)
+		ch <- prometheus.MustNewConstMetric(c.omadaDeviceUplinkSpeed, prometheus.GaugeValue, float64(up.LinkSpeedMbps), uplinkLabels...)
+	}
 	return nil
 }
 
@@ -223,6 +237,15 @@ func NewDeviceCollector(apiClient *omada.Client) *DeviceCollector {
 		"site",
 		"site_id",
 	}
+	uplinkLabels := append(append([]string{}, deviceLabels...),
+		"uplink_mac",
+		"uplink_name",
+		"uplink_type",
+		"uplink_port",
+		"uplink_local_port",
+		"uplink_lag_id",
+		"uplink_lag_ports",
+	)
 	gatewayWanLabels := append(deviceLabels,
 		"port",
 		"name",
@@ -313,6 +336,11 @@ func NewDeviceCollector(apiClient *omada.Client) *DeviceCollector {
 		omadaDeviceUpload: prometheus.NewDesc("omada_device_upload",
 			"Device upload traffic.",
 			deviceLabels,
+			nil,
+		),
+		omadaDeviceUplinkSpeed: prometheus.NewDesc("omada_device_uplink_link_speed_mbps",
+			"Negotiated speed of the device's wired uplink from the controller topology map; labels name the parent device and both port ends.",
+			uplinkLabels,
 			nil,
 		),
 		omadaDeviceTemp: prometheus.NewDesc("omada_device_temp",

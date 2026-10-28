@@ -80,6 +80,14 @@ func (c *Client) getDevicesFresh() ([]model.DevicesInterface, error) {
 		}
 	})
 
+	// Wired parent of every switch/AP comes from the topology map; a failure
+	// here only loses the uplink attributes, never the inventory.
+	if uplinks, err := c.GetTopology(); err != nil {
+		log.Warn().Err(err).Msg("Error getting topology; uplink attributes unavailable")
+	} else {
+		applyTopology(devicedata.Result, uplinks)
+	}
+
 	return devicedata.Result, nil
 }
 

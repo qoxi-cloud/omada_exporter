@@ -55,6 +55,8 @@ func TestGetDevicesSkipsOnlyUnavailableOpenAPIEnrichment(t *testing.T) {
 				case "/cid/api/v2/sites/site-id/devices":
 					inventoryRequests.Add(1)
 					_, _ = io.WriteString(w, `{"errorCode":0,"result":[{"mac":"02-00-00-00-00-01","type":"gateway","name":"Test Gateway","status":14}]}`)
+				case "/cid/api/v2/sites/site-id/topology":
+					_, _ = io.WriteString(w, `{"errorCode":0,"result":{"topologyArray":[{"type":"gateway","name":"Test Gateway","mac":"02-00-00-00-00-01","successors":[]}]}}`)
 				case "/cid/api/v2/sites/site-id/gateways/02-00-00-00-00-01":
 					portRequests.Add(1)
 					_, _ = io.WriteString(w, `{"errorCode":0,"result":{"temp":42,"rxRate":123,"txRate":456,"portStats":[{"port":1,"name":"Test Port","status":1,"speed":3}]}}`)

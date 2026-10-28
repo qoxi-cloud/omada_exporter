@@ -28,6 +28,8 @@ type Device struct {
 	RxRate         float64 `json:"rxRate"`
 	TxRate         float64 `json:"txRate"`
 	Temp           float64 `json:"temp"`
+	// Topology is filled from the controller topology map (web API), not from the device list.
+	Topology *TopologyUplink `json:"-"`
 }
 
 type DeviceInterface interface {
@@ -50,6 +52,8 @@ type DeviceInterface interface {
 	GetDownload() float64
 	GetUpload() float64
 	GetTemp() float64
+	GetTopology() *TopologyUplink
+	SetTopology(*TopologyUplink)
 }
 
 // GetType returns the Omada device type used to distinguish concrete models.
@@ -159,6 +163,12 @@ func (s *Device) GetUpload() float64 { return s.Upload }
 
 // GetTemp returns the current device temperature reading.
 func (s *Device) GetTemp() float64 { return s.Temp }
+
+// GetTopology returns the wired uplink from the controller topology map, if known.
+func (s *Device) GetTopology() *TopologyUplink { return s.Topology }
+
+// SetTopology stores the wired uplink resolved from the topology map.
+func (s *Device) SetTopology(t *TopologyUplink) { s.Topology = t }
 
 // GetVersionWithUpgrade appends an upgrade marker when Omada reports a pending upgrade.
 func (s *Device) GetVersionWithUpgrade() string {
