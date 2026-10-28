@@ -48,3 +48,7 @@ publishing is separate and runs only when a `v*` tag is pushed.
 ## License
 
 MIT License. See [LICENSE](./LICENSE).
+
+## Home Assistant add-on (qoxi)
+
+This fork ships the Supervisor add-on in [`addon/omadabridge`](addon/omadabridge). Add `https://github.com/qoxi-cloud/omada_exporter` as an add-on repository; the image builds the bridge at the git tag `v<add-on version>`.

@@ -1,0 +1,59 @@
+name: OmadaBridge
+version: "2.4.4-qoxi.8"
+slug: omadabridge
+description: Read-only TP-Link Omada → Home Assistant bridge (MQTT Discovery), packaged from RCooLeR/omada_exporter
+url: https://github.com/qoxi-cloud/omada_exporter/tree/qoxi/addon/omadabridge
+arch:
+  - amd64
+  - aarch64
+startup: application
+boot: auto
+init: false
+services:
+  - mqtt:want
+privileged:
+  - NET_RAW
+ports:
+  9202/tcp: null
+ports_description:
+  9202/tcp: Prometheus /metrics and /healthz (optional, leave disabled)
+options:
+  omada_host: "https://192.168.0.2:443"
+  omada_site: "Default"
+  omada_user: ""
+  omada_pass: ""
+  omada_client_id: ""
+  omada_secret_id: ""
+  omada_insecure: true
+  mqtt_interval: 30
+  mqtt_expire_after: 120
+  client_retention_hours: 168
+  track_port_metrics: true
+  track_client_metrics: true
+  track_network_quality_metrics: true
+  track_insight_metrics: false
+  log_level: info
+  mqtt_host: ""
+  mqtt_port: 1883
+  mqtt_user: ""
+  mqtt_pass: ""
+schema:
+  omada_host: url
+  omada_site: str
+  omada_user: str
+  omada_pass: password
+  omada_client_id: str?
+  omada_secret_id: password?
+  omada_insecure: bool
+  mqtt_interval: int(10,3600)
+  mqtt_expire_after: int(30,86400)
+  client_retention_hours: int(0,8760)
+  track_port_metrics: bool
+  track_client_metrics: bool
+  track_network_quality_metrics: bool
+  track_insight_metrics: bool
+  log_level: list(error|warn|info|debug)
+  mqtt_host: str?
+  mqtt_port: port
+  mqtt_user: str?
+  mqtt_pass: password?
