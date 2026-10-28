@@ -52,6 +52,8 @@ func TestDisabledOpenAPIGathersRemainQuietAndPreserveWebMetrics(t *testing.T) {
 					} else {
 						body = `{"errorCode":0,"result":[{"type":"gateway","mac":"02-00-00-00-00-01","name":"Gateway","status":14},{"type":"ap","mac":"02-00-00-00-00-02","name":"AP","status":14}]}`
 					}
+				case "/cid/api/v2/sites/site/topology":
+					body = `{"errorCode":0,"result":{"topologyArray":[{"type":"gateway","name":"Gateway","mac":"02-00-00-00-00-01","successors":[{"type":"ap","name":"AP","mac":"02-00-00-00-00-02","successors":[],"wireUpLink":{"upLinkPort":{"port":1},"linkSpeed":3}}]}]}}`
 				case "/cid/api/v2/sites/site/gateways/02-00-00-00-00-01":
 					portRequests.Add(1)
 					body = `{"errorCode":0,"result":{"temp":42,"rxRate":5,"txRate":7,"portStats":[{"port":1,"name":"LAN","status":1,"speed":3}]}}`
