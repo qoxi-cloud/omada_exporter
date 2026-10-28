@@ -193,6 +193,12 @@ OmadaBridge wraps each Omada collector with a small layer of scrape-health metri
 | `net_wan_rx_rate` | WAN RX rate reported by Omada. | device labels, WAN labels |
 | `net_wan_tx_rate` | WAN TX rate reported by Omada. | device labels, WAN labels |
 | `net_wan_latency` | WAN latency in milliseconds. | device labels, WAN labels |
+| `net_wan_speedtest_download_mbps` | Download throughput of the last Ookla speed test through this WAN (Mbit/s). | device labels, WAN labels, source_ip |
+| `net_wan_speedtest_upload_mbps` | Upload throughput of the last speed test (Mbit/s). | device labels, WAN labels, source_ip |
+| `net_wan_speedtest_latency_ms` | Idle latency to the speed test server (ms). | device labels, WAN labels, source_ip |
+| `net_wan_speedtest_jitter_ms` | Jitter of the last speed test (ms). | device labels, WAN labels, source_ip |
+| `net_wan_speedtest_packet_loss_percentage` | Packet loss of the last speed test (%). | device labels, WAN labels, source_ip |
+| `net_wan_speedtest_last_run_timestamp` | Unix time of the last speed test; `server_name`, `server_location`, `isp`, `result_url`, `speedtest_status` (ok/error), `error` are labels. | device labels, WAN labels, source_ip, run labels |
 | `net_client_connected_total` | Total connected clients. | site, site_id, connection_mode, wifi_mode |
 | `net_client_download_activity_bytes` | Current client download activity. | client identity, topology, SSID, site, site_id |
 | `net_client_upload_activity_bytes` | Current client upload activity. | client identity, topology, SSID, site, site_id |

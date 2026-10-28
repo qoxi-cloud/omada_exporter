@@ -1,5 +1,5 @@
 name: OmadaBridge
-version: "2.4.4-qoxi.9"
+version: "2.4.4-qoxi.10"
 slug: omadabridge
 description: Read-only TP-Link Omada → Home Assistant bridge (MQTT Discovery), packaged from RCooLeR/omada_exporter
 url: https://github.com/qoxi-cloud/omada_exporter/tree/qoxi/addon/omadabridge
@@ -9,10 +9,12 @@ arch:
 startup: application
 boot: auto
 init: false
+host_network: true
 services:
   - mqtt:want
 privileged:
   - NET_RAW
+  - NET_ADMIN
 ports:
   9202/tcp: null
 ports_description:
@@ -28,6 +30,8 @@ options:
   mqtt_interval: 30
   mqtt_expire_after: 120
   client_retention_hours: 168
+  speedtest_interval_minutes: 60
+  speedtest_sources: []
   track_port_metrics: true
   track_client_metrics: true
   track_network_quality_metrics: true
@@ -48,6 +52,10 @@ schema:
   mqtt_interval: int(10,3600)
   mqtt_expire_after: int(30,86400)
   client_retention_hours: int(0,8760)
+  speedtest_interval_minutes: int(0,1440)
+  speedtest_sources:
+    - wan: str
+      ip: str
   track_port_metrics: bool
   track_client_metrics: bool
   track_network_quality_metrics: bool

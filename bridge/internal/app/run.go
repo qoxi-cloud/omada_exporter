@@ -6,12 +6,14 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/RCooLeR/omada_exporter/internal/config"
 	"github.com/RCooLeR/omada_exporter/internal/debugdump"
 	"github.com/RCooLeR/omada_exporter/internal/hamqtt"
 	"github.com/RCooLeR/omada_exporter/internal/omada"
 	"github.com/RCooLeR/omada_exporter/internal/omada/session"
+	"github.com/RCooLeR/omada_exporter/internal/speedtest"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 )
@@ -42,6 +44,9 @@ func Run(ctx context.Context, conf *config.Config) error {
 		}
 	}
 	client := omada.NewClient(shared)
+	if err := startSpeedtest(ctx, conf); err != nil {
+		return err
+	}
 	collectors := initCollectors(client)
 	handler, health, err := newExporterHandler(conf, collectors)
 	if err != nil {
@@ -61,6 +66,18 @@ func Run(ctx context.Context, conf *config.Config) error {
 	log.Info().Msg(fmt.Sprintf("listening on :%s", conf.Port))
 	server := newExporterHTTPServer(fmt.Sprintf(":%s", conf.Port), handler)
 	return serve(ctx, server, health, publish)
+}
+
+// startSpeedtest installs the per-WAN speed test runner when sources are set.
+func startSpeedtest(ctx context.Context, conf *config.Config) error {
+	sources, err := speedtest.ParseSources(conf.SpeedtestSources)
+	if err != nil {
+		return err
+	}
+	runner := speedtest.New(conf.SpeedtestBinary, time.Duration(conf.SpeedtestIntervalMinutes)*time.Minute, sources)
+	speedtest.Install(runner)
+	runner.Start(ctx)
+	return nil
 }
 
 func validateConfig(conf *config.Config) error {

@@ -5,8 +5,25 @@ import (
 	"strconv"
 
 	"github.com/RCooLeR/omada_exporter/internal/model"
+	"github.com/RCooLeR/omada_exporter/internal/speedtest"
 	"github.com/prometheus/client_golang/prometheus"
 )
+
+// collectSpeedtest emits the last speed test through a WAN, if one ran.
+func (c *DeviceCollector) collectSpeedtest(ch chan<- prometheus.Metric, wanName string, wanLabels []string) {
+	res, ok := speedtest.Lookup(wanName)
+	if !ok {
+		return
+	}
+	labels := append(append([]string{}, wanLabels...), res.SourceIP)
+	ch <- prometheus.MustNewConstMetric(c.omadaWanSpeedtestDownload, prometheus.GaugeValue, res.DownloadMbps, labels...)
+	ch <- prometheus.MustNewConstMetric(c.omadaWanSpeedtestUpload, prometheus.GaugeValue, res.UploadMbps, labels...)
+	ch <- prometheus.MustNewConstMetric(c.omadaWanSpeedtestLatency, prometheus.GaugeValue, res.LatencyMs, labels...)
+	ch <- prometheus.MustNewConstMetric(c.omadaWanSpeedtestJitter, prometheus.GaugeValue, res.JitterMs, labels...)
+	ch <- prometheus.MustNewConstMetric(c.omadaWanSpeedtestLoss, prometheus.GaugeValue, res.PacketLossPct, labels...)
+	runLabels := append(labels, res.ServerName, res.ServerLocation, res.ISP, res.ResultURL, res.Status(), res.Err)
+	ch <- prometheus.MustNewConstMetric(c.omadaWanSpeedtestLastRun, prometheus.GaugeValue, float64(res.RanAt.Unix()), runLabels...)
+}
 
 // collectGateway emits metrics for the gateway.
 func (c *DeviceCollector) collectGateway(ch chan<- prometheus.Metric, gateway *model.Gateway, siteID string) error {
@@ -44,6 +61,7 @@ func (c *DeviceCollector) collectGateway(ch chan<- prometheus.Metric, gateway *m
 		ch <- prometheus.MustNewConstMetric(c.omadaWanRxRate, prometheus.GaugeValue, wan.RxRate, wanLabels...)
 		ch <- prometheus.MustNewConstMetric(c.omadaWanTxRate, prometheus.GaugeValue, wan.TxRate, wanLabels...)
 		ch <- prometheus.MustNewConstMetric(c.omadaWanLatency, prometheus.GaugeValue, float64(wan.Latency), wanLabels...)
+		c.collectSpeedtest(ch, wan.Name, wanLabels)
 	}
 	if c.trackPortMetrics() {
 		for _, port := range gateway.Ports {

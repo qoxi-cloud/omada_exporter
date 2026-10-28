@@ -33,6 +33,13 @@ type DeviceCollector struct {
 	omadaWanRxRate        *prometheus.Desc
 	omadaWanTxRate        *prometheus.Desc
 	omadaWanLatency       *prometheus.Desc
+	// speed test (Ookla CLI from the bridge host, policy-routed per WAN)
+	omadaWanSpeedtestDownload *prometheus.Desc
+	omadaWanSpeedtestUpload   *prometheus.Desc
+	omadaWanSpeedtestLatency  *prometheus.Desc
+	omadaWanSpeedtestJitter   *prometheus.Desc
+	omadaWanSpeedtestLoss     *prometheus.Desc
+	omadaWanSpeedtestLastRun  *prometheus.Desc
 	//switch
 	omadaDevicePoeRemainWatts *prometheus.Desc
 	//lags
@@ -82,6 +89,12 @@ func (c *DeviceCollector) Describe(ch chan<- *prometheus.Desc) {
 	ch <- c.omadaWanRxRate
 	ch <- c.omadaWanTxRate
 	ch <- c.omadaWanLatency
+	ch <- c.omadaWanSpeedtestDownload
+	ch <- c.omadaWanSpeedtestUpload
+	ch <- c.omadaWanSpeedtestLatency
+	ch <- c.omadaWanSpeedtestJitter
+	ch <- c.omadaWanSpeedtestLoss
+	ch <- c.omadaWanSpeedtestLastRun
 	//switch
 	ch <- c.omadaDevicePoeRemainWatts
 	//lags
@@ -289,6 +302,15 @@ func NewDeviceCollector(apiClient *omada.Client) *DeviceCollector {
 		"ip",
 		"proto",
 	)
+	speedtestLabels := append(append([]string{}, gatewayWanLabels...), "source_ip")
+	speedtestRunLabels := append(append([]string{}, speedtestLabels...),
+		"server_name",
+		"server_location",
+		"isp",
+		"result_url",
+		"speedtest_status",
+		"error",
+	)
 	switchLabels := append(deviceLabels,
 		"device_poe_support",
 		"device_port_number",
@@ -467,6 +489,36 @@ func NewDeviceCollector(apiClient *omada.Client) *DeviceCollector {
 		omadaWanLatency: prometheus.NewDesc("net_wan_latency",
 			"Wan latency (ms)",
 			gatewayWanLabels,
+			nil,
+		),
+		omadaWanSpeedtestDownload: prometheus.NewDesc("net_wan_speedtest_download_mbps",
+			"Measured download throughput of the last speed test through this WAN (Mbit/s).",
+			speedtestLabels,
+			nil,
+		),
+		omadaWanSpeedtestUpload: prometheus.NewDesc("net_wan_speedtest_upload_mbps",
+			"Measured upload throughput of the last speed test through this WAN (Mbit/s).",
+			speedtestLabels,
+			nil,
+		),
+		omadaWanSpeedtestLatency: prometheus.NewDesc("net_wan_speedtest_latency_ms",
+			"Idle latency to the speed test server of the last test (ms).",
+			speedtestLabels,
+			nil,
+		),
+		omadaWanSpeedtestJitter: prometheus.NewDesc("net_wan_speedtest_jitter_ms",
+			"Jitter of the last speed test (ms).",
+			speedtestLabels,
+			nil,
+		),
+		omadaWanSpeedtestLoss: prometheus.NewDesc("net_wan_speedtest_packet_loss_percentage",
+			"Packet loss of the last speed test (%).",
+			speedtestLabels,
+			nil,
+		),
+		omadaWanSpeedtestLastRun: prometheus.NewDesc("net_wan_speedtest_last_run_timestamp",
+			"Unix time of the last speed test through this WAN; server, ISP, result URL and error are labels.",
+			speedtestRunLabels,
 			nil,
 		),
 		//switch
