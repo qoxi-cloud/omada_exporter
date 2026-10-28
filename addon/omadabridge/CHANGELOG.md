@@ -1,3 +1,6 @@
+## 2.4.4-qoxi.9
+- Removed the one-time startup purge of `omada_*` retained records (migration helper, no longer needed). Client retention unchanged.
+
 ## 2.4.4-qoxi.8
 - Add-on now lives in the bridge repository (`addon/omadabridge`); the image builds the bridge at git tag `v<version>`, so one tag = one release. Repository `qoxi-cloud/omadabridge-addon` is archived.
 

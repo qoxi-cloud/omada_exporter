@@ -43,12 +43,10 @@ type Publisher struct {
 	trackedClientMACs  []string
 	metricSamples      map[string]metricSample
 	retainedDiscovery  map[string]string
-	// legacyTrackerDiscovery: retained device_tracker configs still carrying a pre-net_ unique_id
-	legacyTrackerDiscovery map[string]struct{}
-	retainedStates         map[string]map[string]string
-	retainedLoaded         bool
-	mu                     sync.Mutex
-	controls               *controlState
+	retainedStates     map[string]map[string]string
+	retainedLoaded     bool
+	mu                 sync.Mutex
+	controls           *controlState
 }
 
 // clientTracker stores MQTT topics and labels for a tracked client.
@@ -119,20 +117,19 @@ func NewPublisher(client controllerSource, collectors map[string]prometheus.Coll
 
 	prefix := scopedValue(topicPrefix(client.Settings().MQTTTopicPrefix), client.Settings().BridgeID)
 	return &Publisher{
-		client:                 client,
-		registry:               registry,
-		availabilityTopic:      prefix + "/status",
-		published:              map[string]struct{}{},
-		knownClients:           map[string]clientTracker{},
-		lastClientTrackers:     map[string]clientTracker{},
-		clientLastSeen:         map[string]time.Time{},
-		clientAttributes:       map[string]string{},
-		trackedClientMACs:      parseTrackedClientMACs(client.Settings().MQTTTrackedClientMACs),
-		metricSamples:          map[string]metricSample{},
-		retainedDiscovery:      map[string]string{},
-		legacyTrackerDiscovery: map[string]struct{}{},
-		retainedStates:         map[string]map[string]string{},
-		controls:               newControlState(),
+		client:             client,
+		registry:           registry,
+		availabilityTopic:  prefix + "/status",
+		published:          map[string]struct{}{},
+		knownClients:       map[string]clientTracker{},
+		lastClientTrackers: map[string]clientTracker{},
+		clientLastSeen:     map[string]time.Time{},
+		clientAttributes:   map[string]string{},
+		trackedClientMACs:  parseTrackedClientMACs(client.Settings().MQTTTrackedClientMACs),
+		metricSamples:      map[string]metricSample{},
+		retainedDiscovery:  map[string]string{},
+		retainedStates:     map[string]map[string]string{},
+		controls:           newControlState(),
 	}, nil
 }
 
@@ -163,9 +160,8 @@ func (p *Publisher) Run(ctx context.Context) error {
 		return err
 	}
 	p.mu.Lock()
-	log.Info().Int("discovery", len(p.retainedDiscovery)).Int("states", len(p.retainedStates)).Int("legacy_trackers", len(p.legacyTrackerDiscovery)).Bool("loaded", p.retainedLoaded).Msg("retained mqtt inventory")
+	log.Info().Int("discovery", len(p.retainedDiscovery)).Int("states", len(p.retainedStates)).Bool("loaded", p.retainedLoaded).Msg("retained mqtt inventory")
 	p.mu.Unlock()
-	p.purgeLegacyEntities()
 	p.publishAll()
 
 	interval := time.Duration(p.client.Settings().MQTTInterval) * time.Second
@@ -731,13 +727,6 @@ func (p *Publisher) loadRetainedInventory(ctx context.Context) error {
 			} `json:"origin"`
 		}
 		if err := json.Unmarshal(message.Payload(), &config); err != nil || config.Origin.Name != "omada_exporter" {
-			return
-		}
-		if strings.Contains(message.Topic(), "/device_tracker/") && isLegacyUniqueID(config.UniqueID) {
-			p.mu.Lock()
-			p.legacyTrackerDiscovery[message.Topic()] = struct{}{}
-			p.mu.Unlock()
-			notifyActivity()
 			return
 		}
 		if !p.ownsDiscovery(message.Topic()) || !p.ownsEntityState(config.StateTopic) {
