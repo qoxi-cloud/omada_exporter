@@ -33,16 +33,16 @@ func NewNetworkQualityCollector(client *omada.Client) *NetworkQualityCollector {
 	}
 	return &NetworkQualityCollector{
 		client: client, getDevices: client.GetDevices, getAPUplink: client.GetAPUplinkStats, getWANQuality: client.GetWANQuality,
-		packets:   desc("omada_ap_uplink_packets_total", "Controller-reported wired AP uplink packet counter; up/down follow Omada direction. May reset on device/controller restart or counter reset.", packetLabels),
-		drops:     desc("omada_ap_uplink_dropped_packets_total", "Controller-reported wired AP uplink dropped-packet counter; up/down follow Omada direction. May reset on device/controller restart or counter reset.", packetLabels),
-		errors:    desc("omada_ap_uplink_error_packets_total", "Controller-reported wired AP uplink error-packet counter; up/down follow Omada direction. May reset on device/controller restart or counter reset.", packetLabels),
-		latency:   desc("omada_gateway_wan_quality_latency_average_seconds", "Gateway-wide WAN latency average over the configured rolling quality window, in seconds; not instantaneous or per-interface.", labels),
-		jitter:    desc("omada_gateway_wan_quality_jitter_average_seconds", "Gateway-wide WAN jitter average over the configured rolling quality window, in seconds; not instantaneous or per-interface.", labels),
-		loss:      desc("omada_gateway_wan_quality_packet_loss_average_percentage", "Gateway-wide WAN packet-loss percentage averaged over the configured rolling quality window; not a cumulative counter.", labels),
-		mos:       desc("omada_gateway_wan_quality_mos_average", "Gateway-wide mean opinion score averaged over the configured rolling quality window.", labels),
-		window:    desc("omada_gateway_wan_quality_window_seconds", "Configured rolling query window for gateway WAN quality averages, in seconds.", labels),
-		success:   desc("omada_network_quality_scrape_success", "Whether the attempted network-quality API query succeeded. Successful unsupported or empty responses are distinguished by the available metric.", statusLabels),
-		available: desc("omada_network_quality_available", "Whether at least one valid network-quality measurement was returned for this device/source; 0 for offline, unsupported, empty or failed queries.", statusLabels),
+		packets:   desc("net_ap_uplink_packets_total", "Controller-reported wired AP uplink packet counter; up/down follow Omada direction. May reset on device/controller restart or counter reset.", packetLabels),
+		drops:     desc("net_ap_uplink_dropped_packets_total", "Controller-reported wired AP uplink dropped-packet counter; up/down follow Omada direction. May reset on device/controller restart or counter reset.", packetLabels),
+		errors:    desc("net_ap_uplink_error_packets_total", "Controller-reported wired AP uplink error-packet counter; up/down follow Omada direction. May reset on device/controller restart or counter reset.", packetLabels),
+		latency:   desc("net_gateway_wan_quality_latency_average_seconds", "Gateway-wide WAN latency average over the configured rolling quality window, in seconds; not instantaneous or per-interface.", labels),
+		jitter:    desc("net_gateway_wan_quality_jitter_average_seconds", "Gateway-wide WAN jitter average over the configured rolling quality window, in seconds; not instantaneous or per-interface.", labels),
+		loss:      desc("net_gateway_wan_quality_packet_loss_average_percentage", "Gateway-wide WAN packet-loss percentage averaged over the configured rolling quality window; not a cumulative counter.", labels),
+		mos:       desc("net_gateway_wan_quality_mos_average", "Gateway-wide mean opinion score averaged over the configured rolling quality window.", labels),
+		window:    desc("net_gateway_wan_quality_window_seconds", "Configured rolling query window for gateway WAN quality averages, in seconds.", labels),
+		success:   desc("net_network_quality_scrape_success", "Whether the attempted network-quality API query succeeded. Successful unsupported or empty responses are distinguished by the available metric.", statusLabels),
+		available: desc("net_network_quality_available", "Whether at least one valid network-quality measurement was returned for this device/source; 0 for offline, unsupported, empty or failed queries.", statusLabels),
 	}
 }
 

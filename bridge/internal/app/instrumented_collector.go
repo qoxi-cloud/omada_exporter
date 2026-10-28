@@ -31,19 +31,19 @@ type collectorHealth struct {
 
 var (
 	collectorCompletedDesc = prometheus.NewDesc(
-		"omada_collector_last_scrape_completed",
+		"net_collector_last_scrape_completed",
 		"Whether the named Omada collector finished its last scrape without panicking. Collector API errors that are handled internally by the collector are logged by that collector.",
 		[]string{"collector"},
 		nil,
 	)
 	collectorDurationDesc = prometheus.NewDesc(
-		"omada_collector_last_scrape_duration_seconds",
+		"net_collector_last_scrape_duration_seconds",
 		"How long the named Omada collector took to finish its last scrape.",
 		[]string{"collector"},
 		nil,
 	)
 	collectorPanicsDesc = prometheus.NewDesc(
-		"omada_collector_panics_total",
+		"net_collector_panics_total",
 		"Total number of panics recovered from the named Omada collector.",
 		[]string{"collector"},
 		nil,

@@ -46,7 +46,7 @@ func NewAlertCollector(apiClient *omada.Client) *alertCollector {
 		"site_id",
 	}
 	return &alertCollector{
-		omadaAlertNum: prometheus.NewDesc("omada_site_alert_num",
+		omadaAlertNum: prometheus.NewDesc("net_site_alert_num",
 			"Number of alerts.",
 			labels,
 			nil,

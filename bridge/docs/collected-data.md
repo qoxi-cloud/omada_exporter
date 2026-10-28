@@ -155,12 +155,12 @@ relabeling or other user-side deduplication is required.
 
 The MQTT publisher also creates derived speed sensors from VPN byte counters:
 
-- `omada_vpn_down_speed`
-- `omada_vpn_up_speed`
-- `omada_site_to_site_vpn_down_speed`
-- `omada_site_to_site_vpn_up_speed`
-- `omada_site_to_site_vpn_peer_down_speed`
-- `omada_site_to_site_vpn_peer_up_speed`
+- `net_vpn_down_speed`
+- `net_vpn_up_speed`
+- `net_site_to_site_vpn_down_speed`
+- `net_site_to_site_vpn_up_speed`
+- `net_site_to_site_vpn_peer_down_speed`
+- `net_site_to_site_vpn_peer_up_speed`
 
 These derived speed sensors are MQTT/Home Assistant entities only. They are calculated from consecutive publisher samples and are not exposed as Prometheus metrics.
 
@@ -173,7 +173,7 @@ Example state payload:
 ```json
 {
   "value": 12.5,
-  "metric": "omada_device_cpu_percentage",
+  "metric": "net_device_cpu_percentage",
   "help": "Percentage of device CPU used.",
   "last_updated": "2026-05-06T12:00:00Z",
   "device_mac": "aa:bb:cc:dd:ee:ff",

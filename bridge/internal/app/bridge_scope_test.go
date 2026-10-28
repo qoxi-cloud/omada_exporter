@@ -17,7 +17,7 @@ func TestBridgeMetricIsolationAndLegacyLabels(t *testing.T) {
 				t.Fatal(err)
 			}
 			registerer := bridgeRegisterer(registry, id)
-			gauge := prometheus.NewGauge(prometheus.GaugeOpts{Name: "omada_test_value", Help: "Test"})
+			gauge := prometheus.NewGauge(prometheus.GaugeOpts{Name: "net_test_value", Help: "Test"})
 			gauge.Set(7)
 			if err := registerer.Register(gauge); err != nil {
 				t.Fatal(err)
@@ -59,7 +59,7 @@ func TestBridgeMetricIsolationAndLegacyLabels(t *testing.T) {
 			}
 			out := httptest.NewRecorder()
 			newMetricsHandler(partial, bridgeRegisterer(partial, id)).ServeHTTP(out, httptest.NewRequest("GET", "/metrics/device", nil))
-			if out.Code != 200 || !strings.Contains(out.Body.String(), "omada_test_value") {
+			if out.Code != 200 || !strings.Contains(out.Body.String(), "net_test_value") {
 				t.Fatal("partial metrics missing")
 			}
 			if id != "" && !strings.Contains(out.Body.String(), `bridge_id="`+id+`"`) {

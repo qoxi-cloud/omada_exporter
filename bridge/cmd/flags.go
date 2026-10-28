@@ -44,6 +44,7 @@ func configFlags(conf *config.Config) []cli.Flag {
 		&cli.IntFlag{Destination: &conf.MQTTInterval, Name: "mqtt-interval", Value: 60, Usage: "MQTT publish interval in seconds.", Sources: cli.EnvVars("OMADA_MQTT_INTERVAL"), Validator: positiveSeconds("mqtt-interval")},
 		&cli.BoolFlag{Destination: &conf.MQTTRetain, Name: "mqtt-retain", Value: true, Usage: "Publish MQTT discovery and state messages as retained.", Sources: cli.EnvVars("OMADA_MQTT_RETAIN")},
 		&cli.IntFlag{Destination: &conf.MQTTExpireAfter, Name: "mqtt-expire-after", Value: 180, Usage: "Home Assistant sensor expire_after value in seconds. Set 0 to disable.", Sources: cli.EnvVars("OMADA_MQTT_EXPIRE_AFTER"), Validator: nonNegativeSeconds("mqtt-expire-after")},
+		&cli.IntFlag{Destination: &conf.MQTTClientRetentionHours, Name: "mqtt-client-retention-hours", Value: 168, Usage: "Remove Home Assistant entities and trackers of clients not seen for this many hours. Set 0 to keep them forever.", Sources: cli.EnvVars("OMADA_MQTT_CLIENT_RETENTION_HOURS")},
 		&cli.StringFlag{Destination: &conf.MQTTTrackedClientMACs, Name: "mqtt-tracked-client-macs", Value: "", Usage: "Comma-separated client MAC addresses to publish Home Assistant device trackers for even when offline.", Sources: cli.EnvVars("OMADA_MQTT_TRACKED_CLIENT_MACS")},
 	}
 	for _, flag := range flags {

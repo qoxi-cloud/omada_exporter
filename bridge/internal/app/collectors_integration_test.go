@@ -100,13 +100,13 @@ func TestDisabledOpenAPIGathersRemainQuietAndPreserveWebMetrics(t *testing.T) {
 					if err != nil {
 						t.Fatal(err)
 					}
-					for _, name := range []string{"omada_controller_uptime_seconds", "omada_site_alert_num", "omada_device_temp", "omada_port_link_status", "omada_dpi_total_traffic_bytes"} {
+					for _, name := range []string{"net_controller_uptime_seconds", "net_site_alert_num", "net_device_temp", "net_port_link_status", "net_dpi_total_traffic_bytes"} {
 						if !hasMetricFamily(families, name) {
 							t.Errorf("Web API metric %q missing", name)
 						}
 					}
 					for _, family := range families {
-						for _, prefix := range []string{"omada_client_", "omada_vpn_", "omada_isp_", "omada_wan_", "omada_network_quality_", "omada_ap_uplink_", "omada_gateway_wan_quality_"} {
+						for _, prefix := range []string{"net_client_", "net_vpn_", "net_isp_", "net_wan_", "net_network_quality_", "net_ap_uplink_", "net_gateway_wan_quality_"} {
 							if strings.HasPrefix(family.GetName(), prefix) {
 								t.Errorf("disabled telemetry %q was emitted", family.GetName())
 							}

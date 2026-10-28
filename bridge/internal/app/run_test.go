@@ -103,8 +103,8 @@ func TestMetricsHandlerUsesPrometheus124Features(t *testing.T) {
 	}
 
 	registry := prometheus.NewRegistry()
-	registry.MustRegister(prometheus.NewGauge(prometheus.GaugeOpts{Name: "omada_test_metric", Help: "Test metric."}))
-	registry.MustRegister(prometheus.NewGauge(prometheus.GaugeOpts{Name: "omada_other_metric", Help: "Other metric."}))
+	registry.MustRegister(prometheus.NewGauge(prometheus.GaugeOpts{Name: "net_test_metric", Help: "Test metric."}))
+	registry.MustRegister(prometheus.NewGauge(prometheus.GaugeOpts{Name: "net_other_metric", Help: "Other metric."}))
 	handler := newMetricsHandler(registry, nil)
 	request := httptest.NewRequest(http.MethodGet, "/metrics", nil)
 	request.Header.Set("Accept", "application/openmetrics-text; version=1.0.0")
@@ -126,11 +126,11 @@ func TestMetricsHandlerUsesPrometheus124Features(t *testing.T) {
 		t.Errorf("Process-Start-Time-Unix = %q, want %q", startTime, wantStartTime)
 	}
 
-	filteredRequest := httptest.NewRequest(http.MethodGet, "/metrics?name[]=omada_test_metric", nil)
+	filteredRequest := httptest.NewRequest(http.MethodGet, "/metrics?name[]=net_test_metric", nil)
 	filteredResponse := httptest.NewRecorder()
 	handler.ServeHTTP(filteredResponse, filteredRequest)
-	if body := filteredResponse.Body.String(); !strings.Contains(body, "omada_test_metric") || strings.Contains(body, "omada_other_metric") {
-		t.Errorf("filtered metrics body = %q, want only omada_test_metric", body)
+	if body := filteredResponse.Body.String(); !strings.Contains(body, "net_test_metric") || strings.Contains(body, "net_other_metric") {
+		t.Errorf("filtered metrics body = %q, want only net_test_metric", body)
 	}
 }
 

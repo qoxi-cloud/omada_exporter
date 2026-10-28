@@ -23,7 +23,7 @@ func TestMetricDocsAreDeterministicAndComplete(t *testing.T) {
 	if len(rows) < 3 || rows[0] != "| Name | Description | Labels |" || !slices.IsSorted(rows[2:]) {
 		t.Fatal("metric documentation is missing its table header or stable order")
 	}
-	for _, metric := range []string{"omada_client_connected_total", "omada_dpi_total_traffic_bytes", "omada_gateway_wan_quality_"} {
+	for _, metric := range []string{"net_client_connected_total", "net_dpi_total_traffic_bytes", "net_gateway_wan_quality_"} {
 		if !strings.Contains(first.String(), metric) {
 			t.Errorf("offline metric documentation omits %s", metric)
 		}

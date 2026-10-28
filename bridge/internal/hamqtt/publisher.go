@@ -43,10 +43,12 @@ type Publisher struct {
 	trackedClientMACs  []string
 	metricSamples      map[string]metricSample
 	retainedDiscovery  map[string]string
-	retainedStates     map[string]map[string]string
-	retainedLoaded     bool
-	mu                 sync.Mutex
-	controls           *controlState
+	// legacyTrackerDiscovery: retained device_tracker configs still carrying a pre-net_ unique_id
+	legacyTrackerDiscovery map[string]struct{}
+	retainedStates         map[string]map[string]string
+	retainedLoaded         bool
+	mu                     sync.Mutex
+	controls               *controlState
 }
 
 // clientTracker stores MQTT topics and labels for a tracked client.
@@ -117,19 +119,20 @@ func NewPublisher(client controllerSource, collectors map[string]prometheus.Coll
 
 	prefix := scopedValue(topicPrefix(client.Settings().MQTTTopicPrefix), client.Settings().BridgeID)
 	return &Publisher{
-		client:             client,
-		registry:           registry,
-		availabilityTopic:  prefix + "/status",
-		published:          map[string]struct{}{},
-		knownClients:       map[string]clientTracker{},
-		lastClientTrackers: map[string]clientTracker{},
-		clientLastSeen:     map[string]time.Time{},
-		clientAttributes:   map[string]string{},
-		trackedClientMACs:  parseTrackedClientMACs(client.Settings().MQTTTrackedClientMACs),
-		metricSamples:      map[string]metricSample{},
-		retainedDiscovery:  map[string]string{},
-		retainedStates:     map[string]map[string]string{},
-		controls:           newControlState(),
+		client:                 client,
+		registry:               registry,
+		availabilityTopic:      prefix + "/status",
+		published:              map[string]struct{}{},
+		knownClients:           map[string]clientTracker{},
+		lastClientTrackers:     map[string]clientTracker{},
+		clientLastSeen:         map[string]time.Time{},
+		clientAttributes:       map[string]string{},
+		trackedClientMACs:      parseTrackedClientMACs(client.Settings().MQTTTrackedClientMACs),
+		metricSamples:          map[string]metricSample{},
+		retainedDiscovery:      map[string]string{},
+		legacyTrackerDiscovery: map[string]struct{}{},
+		retainedStates:         map[string]map[string]string{},
+		controls:               newControlState(),
 	}, nil
 }
 
@@ -159,6 +162,7 @@ func (p *Publisher) Run(ctx context.Context) error {
 	if err := ctx.Err(); err != nil {
 		return err
 	}
+	p.purgeLegacyEntities()
 	p.publishAll()
 
 	interval := time.Duration(p.client.Settings().MQTTInterval) * time.Second
@@ -386,7 +390,7 @@ func (p *Publisher) newMetricEntity(family *dto.MetricFamily, labels map[string]
 	return entity{
 		Component:      component,
 		ObjectID:       objectID,
-		UniqueID:       "omada_exporter_" + objectID,
+		UniqueID:       "net_bridge_" + objectID,
 		Name:           friendlyMetricName(metricName, labels),
 		DiscoveryTopic: discoveryTopic,
 		StateTopic:     stateTopic,
@@ -410,7 +414,7 @@ func (p *Publisher) newDerivedEntity(metricName, help string, labels map[string]
 	return entity{
 		Component:      "sensor",
 		ObjectID:       objectID,
-		UniqueID:       "omada_exporter_" + objectID,
+		UniqueID:       "net_bridge_" + objectID,
 		Name:           friendlyMetricName(metricName, labels),
 		DiscoveryTopic: discoveryTopic,
 		StateTopic:     stateTopic,
@@ -423,7 +427,7 @@ func (p *Publisher) newDerivedEntity(metricName, help string, labels map[string]
 
 // clientTracker returns tracker metadata for metrics that represent clients.
 func (p *Publisher) clientTracker(metricName string, labels map[string]string) (clientTracker, bool) {
-	if !strings.HasPrefix(metricName, "omada_client_") || labels["mac"] == "" {
+	if !strings.HasPrefix(metricName, "net_client_") || labels["mac"] == "" {
 		return clientTracker{}, false
 	}
 
@@ -495,6 +499,10 @@ func (p *Publisher) publishClientTrackers(seen map[string]clientTracker) {
 			continue
 		}
 		if _, ok := configured[id]; ok {
+			continue
+		}
+		if p.clientExpired(lastSeen[id], observedAt) {
+			p.removeClientTracker(id, tracker)
 			continue
 		}
 		p.publishBytes(tracker.StateTopic, []byte("not_home"), p.client.Settings().MQTTRetain)
@@ -635,8 +643,8 @@ func (p *Publisher) publishClientTrackerDiscovery(id string, tracker clientTrack
 
 	config := map[string]any{
 		"name":                  clientName(tracker.Labels),
-		"unique_id":             "omada_client_" + id,
-		"object_id":             "omada_client_" + id,
+		"unique_id":             "net_client_" + id,
+		"object_id":             "net_client_" + id,
 		"state_topic":           tracker.StateTopic,
 		"json_attributes_topic": tracker.AttributesTopic,
 		"source_type":           "router",
@@ -645,7 +653,7 @@ func (p *Publisher) publishClientTrackerDiscovery(id string, tracker clientTrack
 		"availability_topic":    p.availabilityTopic,
 		"payload_available":     "online",
 		"payload_not_available": "offline",
-		"device":                deviceInfo(p.client, "omada_client_device_tracker", tracker.Labels),
+		"device":                deviceInfo(p.client, "net_client_device_tracker", tracker.Labels),
 		"origin": map[string]any{
 			"name":        "omada_exporter",
 			"sw_version":  "omada_exporter",
@@ -714,11 +722,19 @@ func (p *Publisher) loadRetainedInventory(ctx context.Context) error {
 
 		var config struct {
 			StateTopic string `json:"state_topic"`
+			UniqueID   string `json:"unique_id"`
 			Origin     struct {
 				Name string `json:"name"`
 			} `json:"origin"`
 		}
 		if err := json.Unmarshal(message.Payload(), &config); err != nil || config.Origin.Name != "omada_exporter" {
+			return
+		}
+		if strings.Contains(message.Topic(), "/device_tracker/") && isLegacyUniqueID(config.UniqueID) {
+			p.mu.Lock()
+			p.legacyTrackerDiscovery[message.Topic()] = struct{}{}
+			p.mu.Unlock()
+			notifyActivity()
 			return
 		}
 		if !p.ownsDiscovery(message.Topic()) || !p.ownsEntityState(config.StateTopic) {
@@ -1039,6 +1055,8 @@ func (p *Publisher) reconcileSupersededEntities(current map[string]entity) {
 		delete(p.published, discoveryTopic)
 		p.mu.Unlock()
 	}
+
+	p.expireAbsentClientEntities(current, knownDiscovery, knownStates)
 }
 
 func supersessionKey(metricName string, labels map[string]string) string {
@@ -1109,13 +1127,13 @@ func metricLabels(metric *dto.Metric) map[string]string {
 // isBinaryMetric reports whether the metric should be published as a binary sensor.
 func isBinaryMetric(name string) bool {
 	switch name {
-	case "omada_controller_upgrade_available",
-		"omada_device_need_upgrade",
-		"omada_port_link_status",
-		"omada_lag_link_status",
-		"omada_isp_status",
-		"omada_vpn_status",
-		"omada_site_to_site_vpn_peer_status":
+	case "net_controller_upgrade_available",
+		"net_device_need_upgrade",
+		"net_port_link_status",
+		"net_lag_link_status",
+		"net_isp_status",
+		"net_vpn_status",
+		"net_site_to_site_vpn_peer_status":
 		return true
 	default:
 		return false
@@ -1125,9 +1143,9 @@ func isBinaryMetric(name string) bool {
 // binaryDeviceClass returns the Home Assistant device class for a binary metric.
 func binaryDeviceClass(name string) string {
 	switch name {
-	case "omada_controller_upgrade_available", "omada_device_need_upgrade":
+	case "net_controller_upgrade_available", "net_device_need_upgrade":
 		return "problem"
-	case "omada_port_link_status", "omada_lag_link_status", "omada_isp_status", "omada_vpn_status", "omada_site_to_site_vpn_peer_status":
+	case "net_port_link_status", "net_lag_link_status", "net_isp_status", "net_vpn_status", "net_site_to_site_vpn_peer_status":
 		return "connectivity"
 	default:
 		return ""
@@ -1176,7 +1194,7 @@ func sensorHints(name string, metricType dto.MetricType) map[string]any {
 
 // friendlyMetricName builds a readable entity name for a metric.
 func friendlyMetricName(metricName string, labels map[string]string) string {
-	base := strings.TrimPrefix(metricName, "omada_")
+	base := strings.TrimPrefix(metricName, "net_")
 	parts := strings.Split(base, "_")
 	for i, part := range parts {
 		parts[i] = strings.ToUpper(part[:1]) + part[1:]
@@ -1209,25 +1227,25 @@ func friendlyMetricName(metricName string, labels map[string]string) string {
 // client must update attributes without renaming the entity.
 func friendlyQualifierLabels(metricName string) []string {
 	switch {
-	case strings.HasPrefix(metricName, "omada_ap_uplink_"):
+	case strings.HasPrefix(metricName, "net_ap_uplink_"):
 		return []string{"direction"}
-	case metricName == "omada_ap_interference_percentage":
+	case metricName == "net_ap_interference_percentage":
 		return []string{"radio_band"}
-	case strings.HasPrefix(metricName, "omada_network_quality_"):
+	case strings.HasPrefix(metricName, "net_network_quality_"):
 		return []string{"source"}
-	case strings.HasPrefix(metricName, "omada_controller_storage_"):
+	case strings.HasPrefix(metricName, "net_controller_storage_"):
 		return []string{"storage_name"}
-	case metricName == "omada_controller_upgrade_available":
+	case metricName == "net_controller_upgrade_available":
 		return []string{"upgrade_channel"}
-	case strings.HasPrefix(metricName, "omada_port_"):
+	case strings.HasPrefix(metricName, "net_port_"):
 		return []string{"port"}
-	case strings.HasPrefix(metricName, "omada_lag_"):
+	case strings.HasPrefix(metricName, "net_lag_"):
 		return []string{"lag_id"}
-	case strings.HasPrefix(metricName, "omada_wan_"), strings.HasPrefix(metricName, "omada_isp_"):
+	case strings.HasPrefix(metricName, "net_wan_"), strings.HasPrefix(metricName, "net_isp_"):
 		return []string{"port", "name"}
-	case metricName == "omada_client_connected_total":
+	case metricName == "net_client_connected_total":
 		return []string{"connection_mode", "wifi_mode"}
-	case strings.HasPrefix(metricName, "omada_vpn_"), strings.HasPrefix(metricName, "omada_site_to_site_vpn_"):
+	case strings.HasPrefix(metricName, "net_vpn_"), strings.HasPrefix(metricName, "net_site_to_site_vpn_"):
 		return []string{"name", "peer_name"}
 	default:
 		return nil
@@ -1271,29 +1289,29 @@ func metricIdentityParts(metricName string, labels map[string]string, includeSit
 	}
 
 	switch {
-	case strings.HasPrefix(metricName, "omada_ap_uplink_"):
+	case strings.HasPrefix(metricName, "net_ap_uplink_"):
 		appendIdentity("direction")
-	case metricName == "omada_ap_interference_percentage":
+	case metricName == "net_ap_interference_percentage":
 		appendIdentity("radio_band")
-	case strings.HasPrefix(metricName, "omada_network_quality_"):
+	case strings.HasPrefix(metricName, "net_network_quality_"):
 		appendIdentity("source")
-	case strings.HasPrefix(metricName, "omada_controller_storage_"):
+	case strings.HasPrefix(metricName, "net_controller_storage_"):
 		appendIdentity("storage_name")
-	case metricName == "omada_controller_upgrade_available":
+	case metricName == "net_controller_upgrade_available":
 		appendIdentity("upgrade_channel")
-	case strings.HasPrefix(metricName, "omada_port_"), strings.HasPrefix(metricName, "omada_wan_"), strings.HasPrefix(metricName, "omada_isp_"):
+	case strings.HasPrefix(metricName, "net_port_"), strings.HasPrefix(metricName, "net_wan_"), strings.HasPrefix(metricName, "net_isp_"):
 		appendIdentity("port")
-	case strings.HasPrefix(metricName, "omada_lag_"):
+	case strings.HasPrefix(metricName, "net_lag_"):
 		appendIdentity("lag_id")
-	case metricName == "omada_client_connected_total":
+	case metricName == "net_client_connected_total":
 		appendIdentity("connection_mode")
 		appendIdentity("wifi_mode")
-	case metricName == "omada_dpi_category_traffic_bytes":
+	case metricName == "net_dpi_category_traffic_bytes":
 		appendIdentity("family_id")
 		if strings.TrimSpace(labels["family_id"]) == "" {
 			appendIdentity("family_name")
 		}
-	case metricName == "omada_dpi_application_traffic_bytes":
+	case metricName == "net_dpi_application_traffic_bytes":
 		appendIdentity("family_id")
 		appendIdentity("application_id")
 		if strings.TrimSpace(labels["application_id"]) == "" {
@@ -1302,9 +1320,9 @@ func metricIdentityParts(metricName string, labels map[string]string, includeSit
 	}
 
 	vpnID := strings.TrimSpace(labels["vpn_id"])
-	if vpnID != "" && (metricName == "omada_vpn_status" || strings.HasPrefix(metricName, "omada_site_to_site_vpn_")) {
+	if vpnID != "" && (metricName == "net_vpn_status" || strings.HasPrefix(metricName, "net_site_to_site_vpn_")) {
 		appendIdentity("vpn_id")
-		if strings.HasPrefix(metricName, "omada_site_to_site_vpn_peer_") {
+		if strings.HasPrefix(metricName, "net_site_to_site_vpn_peer_") {
 			if strings.TrimSpace(labels["peer_id"]) != "" {
 				appendIdentity("peer_id")
 			} else {
@@ -1315,7 +1333,7 @@ func metricIdentityParts(metricName string, labels map[string]string, includeSit
 		return parts
 	}
 
-	if strings.HasPrefix(metricName, "omada_vpn_") && vpnID == "" {
+	if strings.HasPrefix(metricName, "net_vpn_") && vpnID == "" {
 		for _, key := range []string{"name", "interface_name", "vpn_mode", "vpn_type"} {
 			appendIdentity(key)
 		}
@@ -1395,9 +1413,9 @@ func deviceInfo(client controllerSource, metricName string, labels map[string]st
 }
 
 func legacyDeviceInfo(client controllerSource, metricName string, labels map[string]string) map[string]any {
-	if strings.HasPrefix(metricName, "omada_client_") && labels["mac"] != "" && labels["device_mac"] == "" {
+	if strings.HasPrefix(metricName, "net_client_") && labels["mac"] != "" && labels["device_mac"] == "" {
 		device := map[string]any{
-			"identifiers":  []string{"omada_client_" + trackerID(labels["mac"])},
+			"identifiers":  []string{"net_client_" + trackerID(labels["mac"])},
 			"name":         clientName(labels),
 			"manufacturer": firstNonEmpty(labels["vendor"], "Unknown"),
 			"model":        firstNonEmpty(labels["device_type"], labels["device_category"]),
@@ -1407,7 +1425,7 @@ func legacyDeviceInfo(client controllerSource, metricName string, labels map[str
 
 	if labels["device_mac"] != "" {
 		device := map[string]any{
-			"identifiers":       []string{"omada_device_" + trackerID(labels["device_mac"])},
+			"identifiers":       []string{"net_device_" + trackerID(labels["device_mac"])},
 			"name":              firstNonEmpty(labels["device_name"], labels["device_mac"]),
 			"manufacturer":      "TP-Link",
 			"model":             firstNonEmpty(labels["device_show_model"], labels["device_model"]),
@@ -1420,7 +1438,7 @@ func legacyDeviceInfo(client controllerSource, metricName string, labels map[str
 
 	if labels["gateway_mac"] != "" {
 		device := map[string]any{
-			"identifiers":       []string{"omada_device_" + trackerID(labels["gateway_mac"])},
+			"identifiers":       []string{"net_device_" + trackerID(labels["gateway_mac"])},
 			"name":              firstNonEmpty(labels["gateway_name"], labels["gateway_mac"]),
 			"manufacturer":      "TP-Link",
 			"configuration_url": client.Settings().Host,
@@ -1430,7 +1448,7 @@ func legacyDeviceInfo(client controllerSource, metricName string, labels map[str
 
 	if labels["vpn_id"] != "" {
 		device := map[string]any{
-			"identifiers":  []string{"omada_vpn_" + slug(labels["vpn_id"])},
+			"identifiers":  []string{"net_vpn_" + slug(labels["vpn_id"])},
 			"name":         firstNonEmpty(labels["name"], labels["vpn_id"]),
 			"manufacturer": "TP-Link Omada",
 			"model":        firstNonEmpty(labels["vpn_type"], "VPN"),
@@ -1438,9 +1456,9 @@ func legacyDeviceInfo(client controllerSource, metricName string, labels map[str
 		return compactDevice(device)
 	}
 
-	if strings.HasPrefix(metricName, "omada_vpn_") && labels["name"] != "" {
+	if strings.HasPrefix(metricName, "net_vpn_") && labels["name"] != "" {
 		device := map[string]any{
-			"identifiers":  []string{"omada_vpn_" + slug(labels["name"]+"_"+labels["interface_name"]+"_"+labels["remote_ip"])},
+			"identifiers":  []string{"net_vpn_" + slug(labels["name"]+"_"+labels["interface_name"]+"_"+labels["remote_ip"])},
 			"name":         labels["name"],
 			"manufacturer": "TP-Link Omada",
 			"model":        firstNonEmpty(labels["vpn_type"], "VPN"),
@@ -1452,7 +1470,7 @@ func legacyDeviceInfo(client controllerSource, metricName string, labels map[str
 	siteID := firstNonEmpty(labels["site_id"], configuredSiteID, labels["site"], client.Settings().Site)
 	siteName := firstNonEmpty(labels["site"], client.Settings().Site, "Omada Site")
 	return compactDevice(map[string]any{
-		"identifiers":       []string{"omada_site_" + slug(siteID)},
+		"identifiers":       []string{"net_site_" + slug(siteID)},
 		"name":              "Omada " + siteName,
 		"manufacturer":      "TP-Link Omada",
 		"model":             "Site",
@@ -1578,7 +1596,7 @@ func buildPublishContext(families []*dto.MetricFamily) publishContext {
 	for _, family := range families {
 		for _, metric := range family.Metric {
 			labels := metricLabels(metric)
-			if (strings.HasPrefix(family.GetName(), "omada_controller_") || strings.HasPrefix(family.GetName(), "omada_device_")) && labels["device_mac"] != "" {
+			if (strings.HasPrefix(family.GetName(), "net_controller_") || strings.HasPrefix(family.GetName(), "net_device_")) && labels["device_mac"] != "" {
 				id := trackerID(labels["device_mac"])
 				existing := infrastructureByMAC[id]
 				if existing == nil {
@@ -1592,7 +1610,7 @@ func buildPublishContext(families []*dto.MetricFamily) publishContext {
 				}
 			}
 
-			if family.GetName() != "omada_vpn_status" {
+			if family.GetName() != "net_vpn_status" {
 				continue
 			}
 			vpnID := strings.TrimSpace(labels["vpn_id"])
@@ -1634,7 +1652,7 @@ func uniqueLookup(counts map[string]int, values map[string]string) map[string]st
 
 // deviceLabels returns the labels used to identify the owning device for a metric.
 func deviceLabels(metricName string, labels map[string]string, ctx publishContext) map[string]string {
-	if strings.HasPrefix(metricName, "omada_client_") && labels["mac"] != "" {
+	if strings.HasPrefix(metricName, "net_client_") && labels["mac"] != "" {
 		if infrastructure := ctx.infrastructureByMAC[trackerID(labels["mac"])]; infrastructure != nil {
 			enriched := copyLabels(labels)
 			maps.Copy(enriched, infrastructure)
@@ -1642,7 +1660,7 @@ func deviceLabels(metricName string, labels map[string]string, ctx publishContex
 		}
 	}
 
-	if !strings.HasPrefix(metricName, "omada_vpn_") || labels["vpn_id"] != "" {
+	if !strings.HasPrefix(metricName, "net_vpn_") || labels["vpn_id"] != "" {
 		return labels
 	}
 
@@ -1671,18 +1689,18 @@ func vpnLookupKey(name, mode, vpnType string) string {
 // derivedMetric returns the derived metric definition for a source metric.
 func derivedMetric(metricName string) (string, string, bool) {
 	switch metricName {
-	case "omada_vpn_down_bytes":
-		return "omada_vpn_down_speed", "VPN downlink speed in bits per second", true
-	case "omada_vpn_up_bytes":
-		return "omada_vpn_up_speed", "VPN uplink speed in bits per second", true
-	case "omada_site_to_site_vpn_down_bytes":
-		return "omada_site_to_site_vpn_down_speed", "Site-to-site VPN downlink speed in bits per second", true
-	case "omada_site_to_site_vpn_up_bytes":
-		return "omada_site_to_site_vpn_up_speed", "Site-to-site VPN uplink speed in bits per second", true
-	case "omada_site_to_site_vpn_peer_down_bytes":
-		return "omada_site_to_site_vpn_peer_down_speed", "Site-to-site VPN peer downlink speed in bits per second", true
-	case "omada_site_to_site_vpn_peer_up_bytes":
-		return "omada_site_to_site_vpn_peer_up_speed", "Site-to-site VPN peer uplink speed in bits per second", true
+	case "net_vpn_down_bytes":
+		return "net_vpn_down_speed", "VPN downlink speed in bits per second", true
+	case "net_vpn_up_bytes":
+		return "net_vpn_up_speed", "VPN uplink speed in bits per second", true
+	case "net_site_to_site_vpn_down_bytes":
+		return "net_site_to_site_vpn_down_speed", "Site-to-site VPN downlink speed in bits per second", true
+	case "net_site_to_site_vpn_up_bytes":
+		return "net_site_to_site_vpn_up_speed", "Site-to-site VPN uplink speed in bits per second", true
+	case "net_site_to_site_vpn_peer_down_bytes":
+		return "net_site_to_site_vpn_peer_down_speed", "Site-to-site VPN peer downlink speed in bits per second", true
+	case "net_site_to_site_vpn_peer_up_bytes":
+		return "net_site_to_site_vpn_peer_up_speed", "Site-to-site VPN peer uplink speed in bits per second", true
 	default:
 		return "", "", false
 	}

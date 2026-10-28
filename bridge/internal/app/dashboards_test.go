@@ -26,7 +26,7 @@ const (
 var scrapeLabels = map[string]struct{}{"instance": {}, "job": {}, "bridge_id": {}}
 
 var (
-	metricNamePattern           = regexp.MustCompile("\\bomada_[a-zA-Z0-9_]+\\b")
+	metricNamePattern           = regexp.MustCompile("\\bnet_[a-zA-Z0-9_]+\\b")
 	matcherPattern              = regexp.MustCompile("(^|,)\\s*([a-zA-Z_][a-zA-Z0-9_]*)\\s*(=~|!~|!=|=)")
 	groupByPattern              = regexp.MustCompile("\\b(sum|avg|max|min|count)\\s+by\\s*\\(([^)]*)\\)")
 	vectorMatchPattern          = regexp.MustCompile(`\bon\s*\(([^)]*)\)`)
@@ -174,15 +174,15 @@ func TestGrafanaDashboardsMatchExporterContract(t *testing.T) {
 					t.Error("full dashboard does not link device uptime series to the device details dashboard")
 				}
 				required := []string{
-					"omada_client_connected_total",
-					"omada_collector_last_scrape_completed",
-					"omada_controller_storage_total_bytes",
-					"omada_device_6g_tx_util",
-					"omada_device_temp",
-					"omada_dpi_application_traffic_bytes",
-					"omada_lag_link_rx",
-					"omada_site_to_site_vpn_peer_status",
-					"omada_wan_internet_state",
+					"net_client_connected_total",
+					"net_collector_last_scrape_completed",
+					"net_controller_storage_total_bytes",
+					"net_device_6g_tx_util",
+					"net_device_temp",
+					"net_dpi_application_traffic_bytes",
+					"net_lag_link_rx",
+					"net_site_to_site_vpn_peer_status",
+					"net_wan_internet_state",
 				}
 				for _, metric := range required {
 					if _, ok := referenced[metric]; !ok {
@@ -191,13 +191,13 @@ func TestGrafanaDashboardsMatchExporterContract(t *testing.T) {
 				}
 			case "omada-device-details.json":
 				required := []string{
-					"omada_client_traffic_down_bytes",
-					"omada_device_6g_tx_util",
-					"omada_device_rx_rate",
-					"omada_device_tx_rate",
-					"omada_lag_link_speed_mbps",
-					"omada_port_link_speed_mbps",
-					"omada_wan_internet_state",
+					"net_client_traffic_down_bytes",
+					"net_device_6g_tx_util",
+					"net_device_rx_rate",
+					"net_device_tx_rate",
+					"net_lag_link_speed_mbps",
+					"net_port_link_speed_mbps",
+					"net_wan_internet_state",
 				}
 				for _, metric := range required {
 					if _, ok := referenced[metric]; !ok {
@@ -283,19 +283,19 @@ func TestGrafanaDashboardsKeepBridgeSourcesSeparate(t *testing.T) {
 	client := `name="Phone",mac="66:77:88:99:AA:BB"`
 	vpn := `name="site-vpn",vpn_type="WireGuard"`
 	inputs := []inputSeries{
-		{`omada_wan_latency{` + legacy + `,` + wan + `}`, "10+0x5"},
-		{`omada_wan_latency{` + apartment + `,` + wan + `}`, "90+0x5"},
-		{`omada_client_traffic_down_bytes{` + legacy + `,` + client + `}`, "0+600x5"},
-		{`omada_client_traffic_up_bytes{` + legacy + `,` + client + `}`, "0+600x5"},
-		{`omada_client_traffic_down_bytes{` + apartment + `,` + client + `}`, "0+1200x5"},
-		{`omada_client_traffic_up_bytes{` + apartment + `,` + client + `}`, "0+1200x5"},
-		{`omada_vpn_uptime{` + legacy + `,` + vpn + `,interface_name="wg0"}`, "60+0x5"},
-		{`omada_site_to_site_vpn_peer_login_timestamp{` + apartment + `,` + vpn + `,vpn_id="same-vpn",peer_id="same-peer"}`, "120+0x5"},
+		{`net_wan_latency{` + legacy + `,` + wan + `}`, "10+0x5"},
+		{`net_wan_latency{` + apartment + `,` + wan + `}`, "90+0x5"},
+		{`net_client_traffic_down_bytes{` + legacy + `,` + client + `}`, "0+600x5"},
+		{`net_client_traffic_up_bytes{` + legacy + `,` + client + `}`, "0+600x5"},
+		{`net_client_traffic_down_bytes{` + apartment + `,` + client + `}`, "0+1200x5"},
+		{`net_client_traffic_up_bytes{` + apartment + `,` + client + `}`, "0+1200x5"},
+		{`net_vpn_uptime{` + legacy + `,` + vpn + `,interface_name="wg0"}`, "60+0x5"},
+		{`net_site_to_site_vpn_peer_login_timestamp{` + apartment + `,` + vpn + `,vpn_id="same-vpn",peer_id="same-peer"}`, "120+0x5"},
 		// Regex metacharacters in instance values must not match another target.
-		{`omada_wan_latency{job="omada",instance="10.20.0.1:9040",bridge_id="ip-target",site="Default",site_id="same-site",` + wan + `}`, "30+0x5"},
-		{`omada_wan_latency{job="omada",instance="10x20x0x1:9040",bridge_id="lookalike",site="Default",site_id="same-site",` + wan + `}`, "999+0x5"},
+		{`net_wan_latency{job="omada",instance="10.20.0.1:9040",bridge_id="ip-target",site="Default",site_id="same-site",` + wan + `}`, "30+0x5"},
+		{`net_wan_latency{job="omada",instance="10x20x0x1:9040",bridge_id="lookalike",site="Default",site_id="same-site",` + wan + `}`, "999+0x5"},
 		// A separate scrape job may have the same instance name.
-		{`omada_wan_latency{job="different-job",instance="omada-bridge:9040",site="Default",site_id="same-site",` + wan + `}`, "888+0x5"},
+		{`net_wan_latency{job="different-job",instance="omada-bridge:9040",site="Default",site_id="same-site",` + wan + `}`, "888+0x5"},
 	}
 	tests := []expressionTest{
 		{query("WAN latency", "omada", "omada-bridge:9040"), "5m", []sample{{`{` + legacy + `,` + wan + `}`, 10}}},
@@ -538,11 +538,11 @@ func validateDashboardPanel(t *testing.T, panel *grafanaPanel, contract map[stri
 func validateDashboardPanelSemantics(t *testing.T, panel *grafanaPanel, location string) {
 	t.Helper()
 	for _, target := range panel.Targets {
-		if strings.Contains(target.Expr, "omada_wan_status{") {
+		if strings.Contains(target.Expr, "net_wan_status{") {
 			validateWANStatusMapping(t, panel.FieldConfig, location)
 		}
-		if panel.Type == "stat" && (strings.Contains(target.Expr, "omada_port_link_speed_mbps{") ||
-			strings.Contains(target.Expr, "omada_lag_link_speed_mbps{")) {
+		if panel.Type == "stat" && (strings.Contains(target.Expr, "net_port_link_speed_mbps{") ||
+			strings.Contains(target.Expr, "net_lag_link_speed_mbps{")) {
 			t.Errorf("%s renders a potentially high-cardinality link-speed query as unreadable stat tiles", location)
 		}
 	}
@@ -567,8 +567,8 @@ func validateDashboardPanelSemantics(t *testing.T, panel *grafanaPanel, location
 		}
 		expression := panel.Targets[0].Expr
 		for _, fragment := range []string{
-			"omada_vpn_uptime",
-			"omada_site_to_site_vpn_peer_login_timestamp",
+			"net_vpn_uptime",
+			"net_site_to_site_vpn_peer_login_timestamp",
 			"clamp_min(time() - (",
 			"> 0",
 			"unless on (job, instance, bridge_id, site, site_id, name, vpn_type)",
@@ -666,7 +666,7 @@ func validatePromQLContract(t *testing.T, location, expression, legend string, c
 	t.Helper()
 	metricNames := uniqueStrings(metricNamePattern.FindAllString(expression, -1))
 	if len(metricNames) == 0 {
-		t.Errorf("%s references no omada metric", location)
+		t.Errorf("%s references no net_ metric", location)
 		return nil
 	}
 
@@ -828,7 +828,7 @@ func dashboardMetricContract(t *testing.T) map[string]map[string]struct{} {
 	contract := make(map[string]map[string]struct{})
 	for descriptor := range descriptors {
 		name, _, rawLabels := parseDesc(descriptor.String())
-		if !strings.HasPrefix(name, "omada_") {
+		if !strings.HasPrefix(name, "net_") {
 			t.Fatalf("could not parse descriptor %s", descriptor)
 		}
 		labels := make(map[string]struct{})

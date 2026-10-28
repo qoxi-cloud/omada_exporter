@@ -12,8 +12,8 @@ import (
 
 func TestExporterHandlerPreservesHealthAndScopedMetrics(t *testing.T) {
 	collectors := map[string]prometheus.Collector{
-		"device": newConstCollector("omada_test_device", 1),
-		"alert":  newConstCollector("omada_test_alert", 2),
+		"device": newConstCollector("net_test_device", 1),
+		"alert":  newConstCollector("net_test_alert", 2),
 	}
 	handler, health, err := newExporterHandler(&config.Config{
 		BridgeID: "test-bridge", GoCollectorDisabled: true, ProcessCollectorDisabled: true,
@@ -49,10 +49,10 @@ func TestExporterHandlerPreservesHealthAndScopedMetrics(t *testing.T) {
 			t.Fatalf("%s status = %d", path, response.Code)
 		}
 		body := response.Body.String()
-		if !strings.Contains(body, `omada_test_device{bridge_id="test-bridge"} 1`) {
+		if !strings.Contains(body, `net_test_device{bridge_id="test-bridge"} 1`) {
 			t.Errorf("%s is missing the scoped device metric", path)
 		}
-		if all := path == "/metrics"; strings.Contains(body, "omada_test_alert") != all {
+		if all := path == "/metrics"; strings.Contains(body, "net_test_alert") != all {
 			t.Errorf("%s did not preserve per-collector metric isolation", path)
 		}
 	}

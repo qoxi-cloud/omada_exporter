@@ -124,11 +124,11 @@ func TestVpnTunnelMetricsCoalesceEnrichedSnapshots(t *testing.T) {
 		},
 	})
 
-	assertGaugeFamily(t, families, "omada_vpn_down_packets", []float64{15})
-	assertGaugeFamily(t, families, "omada_vpn_down_bytes", []float64{150})
-	assertGaugeFamily(t, families, "omada_vpn_up_packets", []float64{25})
-	assertGaugeFamily(t, families, "omada_vpn_up_bytes", []float64{250})
-	traffic := requireMetricFamily(t, families, "omada_vpn_down_bytes")
+	assertGaugeFamily(t, families, "net_vpn_down_packets", []float64{15})
+	assertGaugeFamily(t, families, "net_vpn_down_bytes", []float64{150})
+	assertGaugeFamily(t, families, "net_vpn_up_packets", []float64{25})
+	assertGaugeFamily(t, families, "net_vpn_up_bytes", []float64{250})
+	traffic := requireMetricFamily(t, families, "net_vpn_down_bytes")
 	if got := metricLabels(traffic.Metric[0])["endpoint"]; got != "gw.example.test" {
 		t.Errorf("representative endpoint = %q, want enriched endpoint", got)
 	}
@@ -146,9 +146,9 @@ func TestVpnTunnelMetricsPreserveDistinctSessionsForOneVPN(t *testing.T) {
 		},
 	})
 
-	family := requireMetricFamily(t, families, "omada_vpn_down_bytes")
+	family := requireMetricFamily(t, families, "net_vpn_down_bytes")
 	if got := len(family.Metric); got != 2 {
-		t.Fatalf("omada_vpn_down_bytes has %d series, want 2", got)
+		t.Fatalf("net_vpn_down_bytes has %d series, want 2", got)
 	}
 	wantByRemoteIP := map[string]float64{"192.0.2.2": 100, "192.0.2.3": 200}
 	for _, metric := range family.Metric {
@@ -204,8 +204,8 @@ func TestSiteToSiteVPNMetricsDeduplicateIdenticalRows(t *testing.T) {
 		},
 	})
 
-	assertGaugeFamily(t, families, "omada_site_to_site_vpn_down_bytes", []float64{123})
-	assertGaugeFamily(t, families, "omada_site_to_site_vpn_up_bytes", []float64{456})
+	assertGaugeFamily(t, families, "net_site_to_site_vpn_down_bytes", []float64{123})
+	assertGaugeFamily(t, families, "net_site_to_site_vpn_up_bytes", []float64{456})
 }
 
 func TestSiteToSiteVPNMetricsKeepHighestDuplicateSnapshot(t *testing.T) {
@@ -232,8 +232,8 @@ func TestSiteToSiteVPNMetricsKeepHighestDuplicateSnapshot(t *testing.T) {
 		},
 	})
 
-	assertGaugeFamily(t, families, "omada_site_to_site_vpn_down_bytes", []float64{150})
-	assertGaugeFamily(t, families, "omada_site_to_site_vpn_up_bytes", []float64{250})
+	assertGaugeFamily(t, families, "net_site_to_site_vpn_down_bytes", []float64{150})
+	assertGaugeFamily(t, families, "net_site_to_site_vpn_up_bytes", []float64{250})
 }
 
 func TestSiteToSiteVPNMetricsDeduplicateAcrossQueryTypes(t *testing.T) {
@@ -261,8 +261,8 @@ func TestSiteToSiteVPNMetricsDeduplicateAcrossQueryTypes(t *testing.T) {
 		},
 	})
 
-	assertGaugeFamily(t, families, "omada_site_to_site_vpn_down_bytes", []float64{150})
-	assertGaugeFamily(t, families, "omada_site_to_site_vpn_up_bytes", []float64{250})
+	assertGaugeFamily(t, families, "net_site_to_site_vpn_down_bytes", []float64{150})
+	assertGaugeFamily(t, families, "net_site_to_site_vpn_up_bytes", []float64{250})
 }
 
 func TestSiteToSiteVPNMetricsCoalesceEnrichedSnapshots(t *testing.T) {
@@ -302,16 +302,16 @@ func TestSiteToSiteVPNMetricsCoalesceEnrichedSnapshots(t *testing.T) {
 				},
 			})
 
-			assertGaugeFamily(t, families, "omada_site_to_site_vpn_down_bytes", []float64{150})
-			assertGaugeFamily(t, families, "omada_site_to_site_vpn_up_bytes", []float64{250})
-			assertGaugeFamily(t, families, "omada_vpn_down_packets", []float64{15})
-			assertGaugeFamily(t, families, "omada_vpn_up_packets", []float64{25})
-			assertGaugeFamily(t, families, "omada_site_to_site_vpn_total_peers", []float64{2})
-			traffic := requireMetricFamily(t, families, "omada_site_to_site_vpn_down_bytes")
+			assertGaugeFamily(t, families, "net_site_to_site_vpn_down_bytes", []float64{150})
+			assertGaugeFamily(t, families, "net_site_to_site_vpn_up_bytes", []float64{250})
+			assertGaugeFamily(t, families, "net_vpn_down_packets", []float64{15})
+			assertGaugeFamily(t, families, "net_vpn_up_packets", []float64{25})
+			assertGaugeFamily(t, families, "net_site_to_site_vpn_total_peers", []float64{2})
+			traffic := requireMetricFamily(t, families, "net_site_to_site_vpn_down_bytes")
 			if got := metricLabels(traffic.Metric[0])["endpoint"]; got != "gw.example.test" {
 				t.Errorf("representative endpoint = %q, want enriched endpoint", got)
 			}
-			totalPeers := requireMetricFamily(t, families, "omada_site_to_site_vpn_total_peers")
+			totalPeers := requireMetricFamily(t, families, "net_site_to_site_vpn_total_peers")
 			if got := metricLabels(totalPeers.Metric[0])["endpoint"]; got != "gw.example.test" {
 				t.Errorf("total-peers representative endpoint = %q, want enriched endpoint", got)
 			}
@@ -352,10 +352,10 @@ func TestSiteToSiteVPNMetricsCoalesceEnrichedSnapshotsWithoutIDs(t *testing.T) {
 		},
 	})
 
-	assertGaugeFamily(t, families, "omada_site_to_site_vpn_down_bytes", []float64{150})
-	assertGaugeFamily(t, families, "omada_site_to_site_vpn_up_bytes", []float64{250})
-	assertGaugeFamily(t, families, "omada_site_to_site_vpn_total_peers", []float64{2})
-	traffic := requireMetricFamily(t, families, "omada_site_to_site_vpn_down_bytes")
+	assertGaugeFamily(t, families, "net_site_to_site_vpn_down_bytes", []float64{150})
+	assertGaugeFamily(t, families, "net_site_to_site_vpn_up_bytes", []float64{250})
+	assertGaugeFamily(t, families, "net_site_to_site_vpn_total_peers", []float64{2})
+	traffic := requireMetricFamily(t, families, "net_site_to_site_vpn_down_bytes")
 	if got := metricLabels(traffic.Metric[0])["endpoint"]; got != "gw.example.test" {
 		t.Errorf("representative endpoint = %q, want enriched endpoint", got)
 	}
@@ -391,9 +391,9 @@ func TestSiteToSiteVPNMetricsPreserveDistinctNamesWithoutIDs(t *testing.T) {
 		},
 	})
 
-	family := requireMetricFamily(t, families, "omada_site_to_site_vpn_down_bytes")
+	family := requireMetricFamily(t, families, "net_site_to_site_vpn_down_bytes")
 	if got := len(family.Metric); got != 2 {
-		t.Fatalf("omada_site_to_site_vpn_down_bytes has %d series, want 2", got)
+		t.Fatalf("net_site_to_site_vpn_down_bytes has %d series, want 2", got)
 	}
 	wantByName := map[string]float64{"Legacy VPN A": 100, "Legacy VPN B": 200}
 	for _, metric := range family.Metric {
@@ -422,10 +422,10 @@ func TestSiteToSiteVPNMetricsPreserveRowsWithoutVpnID(t *testing.T) {
 		},
 	})
 
-	assertGaugeFamily(t, families, "omada_site_to_site_vpn_down_bytes", []float64{140})
-	assertGaugeFamily(t, families, "omada_site_to_site_vpn_up_bytes", []float64{100})
-	if got := len(requireMetricFamily(t, families, "omada_site_to_site_vpn_total_peers").Metric); got != 2 {
-		t.Fatalf("omada_site_to_site_vpn_total_peers has %d series, want 2", got)
+	assertGaugeFamily(t, families, "net_site_to_site_vpn_down_bytes", []float64{140})
+	assertGaugeFamily(t, families, "net_site_to_site_vpn_up_bytes", []float64{100})
+	if got := len(requireMetricFamily(t, families, "net_site_to_site_vpn_total_peers").Metric); got != 2 {
+		t.Fatalf("net_site_to_site_vpn_total_peers has %d series, want 2", got)
 	}
 }
 
@@ -482,14 +482,14 @@ func TestSiteToSiteVPNMetricsAggregateDistinctTunnelRows(t *testing.T) {
 		},
 	})
 
-	assertGaugeFamily(t, families, "omada_site_to_site_vpn_down_bytes", []float64{140})
-	assertGaugeFamily(t, families, "omada_site_to_site_vpn_up_bytes", []float64{100})
-	assertGaugeFamily(t, families, "omada_vpn_down_packets", []float64{140})
-	assertGaugeFamily(t, families, "omada_vpn_up_packets", []float64{100})
+	assertGaugeFamily(t, families, "net_site_to_site_vpn_down_bytes", []float64{140})
+	assertGaugeFamily(t, families, "net_site_to_site_vpn_up_bytes", []float64{100})
+	assertGaugeFamily(t, families, "net_vpn_down_packets", []float64{140})
+	assertGaugeFamily(t, families, "net_vpn_up_packets", []float64{100})
 
-	totalPeers := requireMetricFamily(t, families, "omada_site_to_site_vpn_total_peers")
+	totalPeers := requireMetricFamily(t, families, "net_site_to_site_vpn_total_peers")
 	if got := len(totalPeers.Metric); got != 2 {
-		t.Fatalf("omada_site_to_site_vpn_total_peers has %d series, want 2", got)
+		t.Fatalf("net_site_to_site_vpn_total_peers has %d series, want 2", got)
 	}
 	wantTunnels := map[string]string{
 		"tunnel-in":  "in",
@@ -544,9 +544,9 @@ func TestSiteToSiteVPNMetricsEmitPeerAggregateOnce(t *testing.T) {
 		},
 	})
 
-	assertGaugeFamily(t, families, "omada_site_to_site_vpn_down_bytes", []float64{700})
-	assertGaugeFamily(t, families, "omada_site_to_site_vpn_up_bytes", []float64{900})
-	traffic := requireMetricFamily(t, families, "omada_site_to_site_vpn_down_bytes")
+	assertGaugeFamily(t, families, "net_site_to_site_vpn_down_bytes", []float64{700})
+	assertGaugeFamily(t, families, "net_site_to_site_vpn_up_bytes", []float64{900})
+	traffic := requireMetricFamily(t, families, "net_site_to_site_vpn_down_bytes")
 	if got := metricLabels(traffic.Metric[0])["local_ip"]; got != "192.0.2.1" {
 		t.Errorf("representative local_ip = %q, want the populated label", got)
 	}
@@ -588,8 +588,8 @@ func TestSiteToSiteVPNMetricsFallBackForIncompletePeerCounters(t *testing.T) {
 				},
 			})
 
-			assertGaugeFamily(t, families, "omada_site_to_site_vpn_down_bytes", []float64{tt.wantDown})
-			assertGaugeFamily(t, families, "omada_site_to_site_vpn_up_bytes", []float64{tt.wantUp})
+			assertGaugeFamily(t, families, "net_site_to_site_vpn_down_bytes", []float64{tt.wantDown})
+			assertGaugeFamily(t, families, "net_site_to_site_vpn_up_bytes", []float64{tt.wantUp})
 		})
 	}
 }
@@ -639,12 +639,12 @@ func TestSiteToSiteVPNPeerMetricsDeduplicateIdenticalRows(t *testing.T) {
 		name  string
 		value float64
 	}{
-		{"omada_site_to_site_vpn_peer_status", 1},
-		{"omada_site_to_site_vpn_peer_down_packets", 7},
-		{"omada_site_to_site_vpn_peer_down_bytes", 700},
-		{"omada_site_to_site_vpn_peer_up_packets", 9},
-		{"omada_site_to_site_vpn_peer_up_bytes", 900},
-		{"omada_site_to_site_vpn_peer_login_timestamp", 1_700_000_000},
+		{"net_site_to_site_vpn_peer_status", 1},
+		{"net_site_to_site_vpn_peer_down_packets", 7},
+		{"net_site_to_site_vpn_peer_down_bytes", 700},
+		{"net_site_to_site_vpn_peer_up_packets", 9},
+		{"net_site_to_site_vpn_peer_up_bytes", 900},
+		{"net_site_to_site_vpn_peer_login_timestamp", 1_700_000_000},
 	} {
 		t.Run(want.name, func(t *testing.T) {
 			assertGaugeFamily(t, families, want.name, []float64{want.value})
@@ -684,10 +684,10 @@ func TestSiteToSiteVPNPeerMetricsCoalesceEnrichedSnapshots(t *testing.T) {
 		},
 	})
 
-	assertGaugeFamily(t, families, "omada_site_to_site_vpn_peer_status", []float64{1})
-	assertGaugeFamily(t, families, "omada_site_to_site_vpn_peer_down_bytes", []float64{800})
-	assertGaugeFamily(t, families, "omada_site_to_site_vpn_peer_up_bytes", []float64{950})
-	traffic := requireMetricFamily(t, families, "omada_site_to_site_vpn_peer_down_bytes")
+	assertGaugeFamily(t, families, "net_site_to_site_vpn_peer_status", []float64{1})
+	assertGaugeFamily(t, families, "net_site_to_site_vpn_peer_down_bytes", []float64{800})
+	assertGaugeFamily(t, families, "net_site_to_site_vpn_peer_up_bytes", []float64{950})
+	traffic := requireMetricFamily(t, families, "net_site_to_site_vpn_peer_down_bytes")
 	if got := metricLabels(traffic.Metric[0])["endpoint"]; got != "peer.example.test" {
 		t.Errorf("representative endpoint = %q, want enriched endpoint", got)
 	}
@@ -720,9 +720,9 @@ func TestSiteToSiteVPNPeerMetricsNormalizeSummaryInheritedLabels(t *testing.T) {
 		},
 	})
 
-	assertGaugeFamily(t, families, "omada_site_to_site_vpn_peer_down_bytes", []float64{150})
-	assertGaugeFamily(t, families, "omada_site_to_site_vpn_peer_up_bytes", []float64{250})
-	traffic := requireMetricFamily(t, families, "omada_site_to_site_vpn_peer_down_bytes")
+	assertGaugeFamily(t, families, "net_site_to_site_vpn_peer_down_bytes", []float64{150})
+	assertGaugeFamily(t, families, "net_site_to_site_vpn_peer_up_bytes", []float64{250})
+	traffic := requireMetricFamily(t, families, "net_site_to_site_vpn_peer_down_bytes")
 	if got := metricLabels(traffic.Metric[0])["allowed_ips"]; got != "10.0.0.0/24" {
 		t.Errorf("allowed_ips = %q, want summary-normalized value", got)
 	}
@@ -842,9 +842,9 @@ func TestVpnStatsCollectorGatherDeduplicatesOverlappingQueries(t *testing.T) {
 				t.Fatalf("gather VPN collector: %v", err)
 			}
 
-			assertGaugeFamily(t, families, "omada_site_to_site_vpn_down_bytes", []float64{tt.wantDownBytes})
-			assertGaugeFamily(t, families, "omada_site_to_site_vpn_up_bytes", []float64{tt.wantUpBytes})
-			assertGaugeFamily(t, families, "omada_site_to_site_vpn_total_peers", []float64{1, 1})
+			assertGaugeFamily(t, families, "net_site_to_site_vpn_down_bytes", []float64{tt.wantDownBytes})
+			assertGaugeFamily(t, families, "net_site_to_site_vpn_up_bytes", []float64{tt.wantUpBytes})
+			assertGaugeFamily(t, families, "net_site_to_site_vpn_total_peers", []float64{1, 1})
 			if got := siteToSiteRequests.Load(); got != 2 {
 				t.Errorf("site-to-site stats requests = %d, want 2", got)
 			}

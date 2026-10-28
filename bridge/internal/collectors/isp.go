@@ -76,17 +76,17 @@ func NewISPCollector(apiClient *omada.Client) *ispCollector {
 	}
 
 	return &ispCollector{
-		omadaIspStatus: prometheus.NewDesc("omada_isp_status",
+		omadaIspStatus: prometheus.NewDesc("net_isp_status",
 			"The current status of the ISP enabled/disabled",
 			labels,
 			nil,
 		),
-		omadaIspDownloadSpeed: prometheus.NewDesc("omada_isp_download_speed",
+		omadaIspDownloadSpeed: prometheus.NewDesc("net_isp_download_speed",
 			"The download speed of the ISP",
 			labels,
 			nil,
 		),
-		omadaIspUploadSpeed: prometheus.NewDesc("omada_isp_upload_speed",
+		omadaIspUploadSpeed: prometheus.NewDesc("net_isp_upload_speed",
 			"The upload speed of the ISP",
 			labels,
 			nil,

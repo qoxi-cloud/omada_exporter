@@ -145,8 +145,8 @@ func TestPublishConfiguredClientTrackerOffline(t *testing.T) {
 
 	for key, want := range map[string]any{
 		"name":         "aa:bb:cc:dd:ee:ff",
-		"unique_id":    "omada_client_aa_bb_cc_dd_ee_ff",
-		"object_id":    "omada_client_aa_bb_cc_dd_ee_ff",
+		"unique_id":    "net_client_aa_bb_cc_dd_ee_ff",
+		"object_id":    "net_client_aa_bb_cc_dd_ee_ff",
 		"state_topic":  stateTopic,
 		"source_type":  "router",
 		"payload_home": "home",
@@ -324,8 +324,8 @@ func TestObjectIDKeepsClientIdentityStableAcrossAttachmentChanges(t *testing.T) 
 		"lag_id":      "",
 	}
 
-	oldID := objectID("omada_client_traffic_down_bytes", oldLabels)
-	currentID := objectID("omada_client_traffic_down_bytes", currentLabels)
+	oldID := objectID("net_client_traffic_down_bytes", oldLabels)
+	currentID := objectID("net_client_traffic_down_bytes", currentLabels)
 	if oldID != currentID {
 		t.Fatalf("client object IDs differ across attachment changes: %q != %q", oldID, currentID)
 	}
@@ -339,19 +339,19 @@ func TestObjectIDDistinguishesRealSubresourcesAndDPIProperties(t *testing.T) {
 	}
 	otherPort := copyLabels(baseDevice)
 	otherPort["port"] = "2"
-	if objectID("omada_port_link_status", baseDevice) == objectID("omada_port_link_status", otherPort) {
+	if objectID("net_port_link_status", baseDevice) == objectID("net_port_link_status", otherPort) {
 		t.Fatal("different physical ports received the same object ID")
 	}
 
 	categoryOne := map[string]string{"site_id": "site-id", "family_id": "1", "family_name": "Business"}
 	categoryTwo := map[string]string{"site_id": "site-id", "family_id": "2", "family_name": "Streaming"}
-	if objectID("omada_dpi_category_traffic_bytes", categoryOne) == objectID("omada_dpi_category_traffic_bytes", categoryTwo) {
+	if objectID("net_dpi_category_traffic_bytes", categoryOne) == objectID("net_dpi_category_traffic_bytes", categoryTwo) {
 		t.Fatal("different DPI categories received the same object ID")
 	}
 
 	applicationOne := map[string]string{"site_id": "site-id", "family_id": "1", "application_id": "10"}
 	applicationTwo := map[string]string{"site_id": "site-id", "family_id": "1", "application_id": "11"}
-	if objectID("omada_dpi_application_traffic_bytes", applicationOne) == objectID("omada_dpi_application_traffic_bytes", applicationTwo) {
+	if objectID("net_dpi_application_traffic_bytes", applicationOne) == objectID("net_dpi_application_traffic_bytes", applicationTwo) {
 		t.Fatal("different DPI applications received the same object ID")
 	}
 }
@@ -365,22 +365,22 @@ func TestPublishDPIHomeAssistantMetadataAndSnapshot(t *testing.T) {
 		deviceClass string
 	}{
 		{
-			metric: "omada_dpi_total_traffic_bytes",
+			metric: "net_dpi_total_traffic_bytes",
 			labels: map[string]string{"site": "Default", "site_id": "site-id"},
 			value:  1024, unit: "B", deviceClass: "data_size",
 		},
 		{
-			metric: "omada_dpi_scrape_window_seconds",
+			metric: "net_dpi_scrape_window_seconds",
 			labels: map[string]string{"site": "Default", "site_id": "site-id"},
 			value:  86400, unit: "s", deviceClass: "duration",
 		},
 		{
-			metric: "omada_dpi_category_traffic_bytes",
+			metric: "net_dpi_category_traffic_bytes",
 			labels: map[string]string{"site": "Default", "site_id": "site-id", "family_id": "1", "family_name": "Streaming"},
 			value:  0, unit: "B", deviceClass: "data_size",
 		},
 		{
-			metric: "omada_dpi_application_traffic_bytes",
+			metric: "net_dpi_application_traffic_bytes",
 			labels: map[string]string{"site": "Default", "site_id": "site-id", "family_id": "1", "family_name": "Streaming", "application_id": "10", "application_name": "Video"},
 			value:  256, unit: "B", deviceClass: "data_size",
 		},
@@ -462,7 +462,7 @@ func TestPublishDPIHomeAssistantMetadataAndSnapshot(t *testing.T) {
 func TestObjectIDIgnoresSiteDisplayNameWhenSiteIDExists(t *testing.T) {
 	before := map[string]string{"site_id": "site-id", "site": "Old name", "device_mac": "aa:bb:cc:dd:ee:ff"}
 	after := map[string]string{"site_id": "site-id", "site": "New name", "device_mac": "aa:bb:cc:dd:ee:ff"}
-	if objectID("omada_device_cpu_percentage", before) != objectID("omada_device_cpu_percentage", after) {
+	if objectID("net_device_cpu_percentage", before) != objectID("net_device_cpu_percentage", after) {
 		t.Fatal("site display-name change altered object ID despite stable site ID")
 	}
 }
@@ -484,7 +484,7 @@ func TestReconcileSupersededEntitiesOnlyDeletesConfirmedCounterpart(t *testing.T
 	oldState := "omada_exporter/entities/old/state"
 	publisher.retainedDiscovery[oldDiscovery] = oldState
 	publisher.retainedStates[oldState] = map[string]string{
-		"metric":      "omada_client_traffic_down_bytes",
+		"metric":      "net_client_traffic_down_bytes",
 		"site":        "Default",
 		"site_id":     "old-site-id",
 		"mac":         "aa:bb:cc:dd:ee:ff",
@@ -496,7 +496,7 @@ func TestReconcileSupersededEntitiesOnlyDeletesConfirmedCounterpart(t *testing.T
 	currentEntity := entity{
 		DiscoveryTopic: "homeassistant/sensor/omada_exporter/current/config",
 		StateTopic:     "omada_exporter/entities/current/state",
-		MetricName:     "omada_client_traffic_down_bytes",
+		MetricName:     "net_client_traffic_down_bytes",
 		Labels: map[string]string{
 			"site":    "Default",
 			"site_id": "new-site-id",
@@ -531,7 +531,7 @@ func TestReconcileSupersededEntitiesRetriesFailedTombstone(t *testing.T) {
 		retainedDiscovery: map[string]string{oldDiscovery: oldState},
 		retainedStates: map[string]map[string]string{
 			oldState: {
-				"metric":  "omada_client_traffic_down_bytes",
+				"metric":  "net_client_traffic_down_bytes",
 				"site_id": "site-id",
 				"mac":     "aa:bb:cc:dd:ee:ff",
 			},
@@ -541,7 +541,7 @@ func TestReconcileSupersededEntitiesRetriesFailedTombstone(t *testing.T) {
 	currentEntity := entity{
 		DiscoveryTopic: "homeassistant/sensor/omada_exporter/current/config",
 		StateTopic:     "omada_exporter/entities/current/state",
-		MetricName:     "omada_client_traffic_down_bytes",
+		MetricName:     "net_client_traffic_down_bytes",
 		Labels:         map[string]string{"site_id": "site-id", "mac": "aa:bb:cc:dd:ee:ff"},
 	}
 	current := map[string]entity{currentEntity.DiscoveryTopic: currentEntity}
@@ -584,7 +584,7 @@ func TestCanonicalEntityTopicsReuseNewestRetainedCounterpart(t *testing.T) {
 		},
 		retainedStates: map[string]map[string]string{
 			"omada_exporter/entities/stale/state": {
-				"metric":       "omada_client_traffic_down_bytes",
+				"metric":       "net_client_traffic_down_bytes",
 				"last_updated": "2026-07-14T10:00:00Z",
 				"site":         "Default",
 				"site_id":      "old-site-id",
@@ -593,7 +593,7 @@ func TestCanonicalEntityTopicsReuseNewestRetainedCounterpart(t *testing.T) {
 				"lag_id":       "3",
 			},
 			"omada_exporter/entities/current/state": {
-				"metric":       "omada_client_traffic_down_bytes",
+				"metric":       "net_client_traffic_down_bytes",
 				"last_updated": "2026-07-19T10:00:00Z",
 				"site":         "Default",
 				"site_id":      "new-site-id",
@@ -606,7 +606,7 @@ func TestCanonicalEntityTopicsReuseNewestRetainedCounterpart(t *testing.T) {
 	}
 
 	objectID, discoveryTopic, stateTopic := publisher.canonicalEntityTopics(
-		"omada_client_traffic_down_bytes",
+		"net_client_traffic_down_bytes",
 		map[string]string{
 			"site":    "Default",
 			"site_id": "new-site-id",
@@ -635,7 +635,7 @@ func TestReconcileSupersededEntitiesPreservesUnconfirmedDifferentSite(t *testing
 		retainedDiscovery: map[string]string{"old/config": "old/state"},
 		retainedStates: map[string]map[string]string{
 			"old/state": {
-				"metric":  "omada_client_traffic_down_bytes",
+				"metric":  "net_client_traffic_down_bytes",
 				"site":    "Other site",
 				"site_id": "other-site-id",
 				"mac":     "aa:bb:cc:dd:ee:ff",
@@ -646,7 +646,7 @@ func TestReconcileSupersededEntitiesPreservesUnconfirmedDifferentSite(t *testing
 	currentEntity := entity{
 		DiscoveryTopic: "current/config",
 		StateTopic:     "current/state",
-		MetricName:     "omada_client_traffic_down_bytes",
+		MetricName:     "net_client_traffic_down_bytes",
 		Labels:         map[string]string{"site": "Default", "site_id": "site-id", "mac": "aa:bb:cc:dd:ee:ff"},
 	}
 	publisher.reconcileSupersededEntities(map[string]entity{currentEntity.DiscoveryTopic: currentEntity})
@@ -656,7 +656,7 @@ func TestReconcileSupersededEntitiesPreservesUnconfirmedDifferentSite(t *testing
 }
 
 func TestInfrastructureClientMetricsUseInfrastructureDevice(t *testing.T) {
-	metricName := "omada_controller_uptime_seconds"
+	metricName := "net_controller_uptime_seconds"
 	labelName := "device_mac"
 	labelValue := "aa:bb:cc:dd:ee:ff"
 	ctx := buildPublishContext([]*dto.MetricFamily{{
@@ -668,14 +668,14 @@ func TestInfrastructureClientMetricsUseInfrastructureDevice(t *testing.T) {
 	}})
 
 	labels := map[string]string{"mac": labelValue, "name": "OC220", "device_type": "controller"}
-	enriched := deviceLabels("omada_client_traffic_down_bytes", labels, ctx)
+	enriched := deviceLabels("net_client_traffic_down_bytes", labels, ctx)
 	if enriched["device_mac"] != labelValue {
 		t.Fatalf("device_mac = %q, want infrastructure MAC", enriched["device_mac"])
 	}
 
-	device := deviceInfo(&session.Client{Config: &config.Config{}}, "omada_client_traffic_down_bytes", enriched)
+	device := deviceInfo(&session.Client{Config: &config.Config{}}, "net_client_traffic_down_bytes", enriched)
 	identifiers, ok := device["identifiers"].([]string)
-	if !ok || len(identifiers) != 1 || identifiers[0] != "omada_device_aa_bb_cc_dd_ee_ff" {
+	if !ok || len(identifiers) != 1 || identifiers[0] != "net_device_aa_bb_cc_dd_ee_ff" {
 		t.Fatalf("device identifiers = %#v, want infrastructure device identifier", device["identifiers"])
 	}
 }

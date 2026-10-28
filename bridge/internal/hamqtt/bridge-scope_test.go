@@ -38,7 +38,7 @@ func TestBridgeScopeLegacyAndApartmentShareBrokerWithoutChangingEachOther(t *tes
 	legacy := scopeTestPublisher(t, "", broker)
 	apartment := scopeTestPublisher(t, "slobidska44", broker)
 	labels := map[string]string{"mac": "aa:bb:cc:dd:ee:ff", "site_id": "same-site-id", "site": "Default", "name": "Same phone"}
-	tracker, ok := legacy.clientTracker("omada_client_signal_pct", labels)
+	tracker, ok := legacy.clientTracker("net_client_signal_pct", labels)
 	if !ok {
 		t.Fatal("missing legacy tracker")
 	}
@@ -88,7 +88,7 @@ func TestBridgeScopeMetricDerivedDeviceAndTrackerIdentities(t *testing.T) {
 	legacy := scopeTestPublisher(t, "", broker)
 	apartment := scopeTestPublisher(t, "slobidska44", broker)
 	other := scopeTestPublisher(t, "other-flat", broker)
-	name := "omada_device_cpu_percentage"
+	name := "net_device_cpu_percentage"
 	family := &dto.MetricFamily{Name: &name}
 	labels := map[string]string{"device_mac": "aa:bb:cc:dd:ee:ff", "site_id": "same-site-id", "site": "Default"}
 	entities := []entity{legacy.newMetricEntity(family, labels, publishContext{}), apartment.newMetricEntity(family, labels, publishContext{}), other.newMetricEntity(family, labels, publishContext{})}
@@ -100,7 +100,7 @@ func TestBridgeScopeMetricDerivedDeviceAndTrackerIdentities(t *testing.T) {
 			}
 		}
 	}
-	if entities[0].UniqueID != "omada_exporter_"+objectID(name, labels) || entities[0].Labels["bridge_id"] != "" || !reflect.DeepEqual(entities[0].Device["identifiers"], []string{"omada_device_aa_bb_cc_dd_ee_ff"}) {
+	if entities[0].UniqueID != "net_bridge_"+objectID(name, labels) || entities[0].Labels["bridge_id"] != "" || !reflect.DeepEqual(entities[0].Device["identifiers"], []string{"net_device_aa_bb_cc_dd_ee_ff"}) {
 		t.Fatal("legacy identity changed")
 	}
 	if labels["bridge_id"] != "" {
@@ -111,34 +111,34 @@ func TestBridgeScopeMetricDerivedDeviceAndTrackerIdentities(t *testing.T) {
 	if err := json.Unmarshal(broker.messages[entities[1].StateTopic], &payload); err != nil || payload["bridge_id"] != "slobidska44" {
 		t.Fatalf("state scope missing: %#v (%v)", payload, err)
 	}
-	derived := apartment.newDerivedEntity("omada_vpn_tx_bits_per_second", "Rate", labels, publishContext{})
+	derived := apartment.newDerivedEntity("net_vpn_tx_bits_per_second", "Rate", labels, publishContext{})
 	if derived.Labels["bridge_id"] != "slobidska44" || !strings.HasPrefix(derived.StateTopic, "omada_exporter_slobidska44/") {
 		t.Fatal("derived metric escaped bridge namespace")
 	}
 
 	// A single physical phone has a separate observation in each site and bridge.
 	clientLabels := map[string]string{"mac": "aa:bb:cc:dd:ee:ff", "site_id": "same-site-id", "site": "Default"}
-	first, _ := apartment.clientTracker("omada_client_signal_pct", clientLabels)
+	first, _ := apartment.clientTracker("net_client_signal_pct", clientLabels)
 	clientLabels["site_id"] = "second-site-id"
-	second, _ := apartment.clientTracker("omada_client_signal_pct", clientLabels)
+	second, _ := apartment.clientTracker("net_client_signal_pct", clientLabels)
 	if first.StateTopic == second.StateTopic {
 		t.Fatal("different sites share a tracker")
 	}
-	firstDevice := deviceInfo(apartment.client, "omada_client_device_tracker", first.Labels)
-	secondDevice := deviceInfo(apartment.client, "omada_client_device_tracker", second.Labels)
+	firstDevice := deviceInfo(apartment.client, "net_client_device_tracker", first.Labels)
+	secondDevice := deviceInfo(apartment.client, "net_client_device_tracker", second.Labels)
 	if reflect.DeepEqual(firstDevice["identifiers"], secondDevice["identifiers"]) {
 		t.Fatal("different sites share an HA device")
 	}
-	for _, metric := range []string{"omada_client_signal_pct", "omada_device_cpu_percentage", "omada_vpn_status", "omada_site_clients"} {
+	for _, metric := range []string{"net_client_signal_pct", "net_device_cpu_percentage", "net_vpn_status", "net_site_clients"} {
 		deviceLabels := map[string]string{"mac": "aa:bb:cc:dd:ee:ff", "device_mac": "11:22:33:44:55:66", "vpn_id": "same-vpn", "site_id": "same-site-id"}
-		if metric == "omada_client_signal_pct" {
+		if metric == "net_client_signal_pct" {
 			delete(deviceLabels, "device_mac")
 		}
-		if metric == "omada_vpn_status" {
+		if metric == "net_vpn_status" {
 			delete(deviceLabels, "mac")
 			delete(deviceLabels, "device_mac")
 		}
-		if metric == "omada_site_clients" {
+		if metric == "net_site_clients" {
 			delete(deviceLabels, "mac")
 			delete(deviceLabels, "device_mac")
 			delete(deviceLabels, "vpn_id")
@@ -159,7 +159,7 @@ func TestBridgeScopeCustomPrefixesAndClientIDs(t *testing.T) {
 	if p.statePrefix() != "custom/state_flat-2" || p.mqttClientOptions().ClientID != "custom-client_flat-2" || p.discoveryNode() != "omada_exporter_flat-2" {
 		t.Fatal("custom settings are not deterministically scoped")
 	}
-	name := "omada_site_clients"
+	name := "net_site_clients"
 	ent := p.newMetricEntity(&dto.MetricFamily{Name: &name}, nil, publishContext{})
 	if !strings.HasPrefix(ent.DiscoveryTopic, "ha/discovery/sensor/omada_exporter_flat-2/") {
 		t.Fatal("discovery root changed instead of the publisher node")
@@ -202,14 +202,14 @@ func TestBridgeScopeRetainedRecoveryAndOfflineTransitionsAreIsolated(t *testing.
 		broker := &filteringScopeBroker{recordingMQTTClient: &recordingMQTTClient{}}
 		legacy := scopeTestPublisher(t, "", broker)
 		apartment := scopeTestPublisher(t, "slobidska44", broker)
-		name := "omada_device_cpu_percentage"
+		name := "net_device_cpu_percentage"
 		labels := map[string]string{"site_id": "same-site-id", "device_mac": "11:22:33:44:55:66"}
 		phone := map[string]string{"site_id": "same-site-id", "mac": "aa:bb:cc:dd:ee:ff", "name": "Phone"}
 		for _, pub := range []*Publisher{legacy, apartment} {
 			ent := pub.newMetricEntity(&dto.MetricFamily{Name: &name}, labels, publishContext{})
 			pub.publishDiscovery(ent, dto.MetricType_GAUGE)
 			pub.publishMetricState(ent, 12, time.Now())
-			tracker, _ := pub.clientTracker("omada_client_signal_pct", phone)
+			tracker, _ := pub.clientTracker("net_client_signal_pct", phone)
 			pub.publishClientTrackers(map[string]clientTracker{pub.clientTrackerID(phone): tracker})
 		}
 		for _, id := range []string{"", "slobidska44"} {
@@ -249,7 +249,7 @@ func TestBridgeScopeReconciliationAndInfrastructureCleanupCannotDeleteOtherBridg
 	broker := &recordingMQTTClient{}
 	legacy := scopeTestPublisher(t, "", broker)
 	apartment := scopeTestPublisher(t, "slobidska44", broker)
-	name := "omada_device_cpu_percentage"
+	name := "net_device_cpu_percentage"
 	labels := map[string]string{"site_id": "same-site-id", "site": "Default", "device_mac": "11:22:33:44:55:66"}
 	for _, pub := range []*Publisher{legacy, apartment} {
 		pub.retainedLoaded = true
@@ -293,7 +293,7 @@ func TestBridgeScopeReconciliationAndInfrastructureCleanupCannotDeleteOtherBridg
 func TestBridgeScopeGatherPublishesBridgeAttributesAndDerivedRates(t *testing.T) {
 	broker := &recordingMQTTClient{}
 	p := scopeTestPublisher(t, "slobidska44", broker)
-	metric := prometheus.NewCounterVec(prometheus.CounterOpts{Name: "omada_vpn_up_bytes", Help: "VPN traffic"}, []string{"site_id", "name", "interface_name", "vpn_mode", "vpn_type"})
+	metric := prometheus.NewCounterVec(prometheus.CounterOpts{Name: "net_vpn_up_bytes", Help: "VPN traffic"}, []string{"site_id", "name", "interface_name", "vpn_mode", "vpn_type"})
 	metric.WithLabelValues("same-site-id", "Tunnel", "VPN1", "client", "openvpn").Add(100)
 	p.registry.MustRegister(metric)
 	p.publishAll()
@@ -318,7 +318,7 @@ func TestBridgeScopeGatherPublishesBridgeAttributesAndDerivedRates(t *testing.T)
 
 func TestBridgeScopeCanonicalRecoveryRejectsForeignIdentityAndStateTopics(t *testing.T) {
 	p := scopeTestPublisher(t, "slobidska44", &recordingMQTTClient{})
-	name := "omada_device_cpu_percentage"
+	name := "net_device_cpu_percentage"
 	labels := map[string]string{"device_mac": "11:22:33:44:55:66", "site_id": "same-site-id"}
 	want := p.newMetricEntity(&dto.MetricFamily{Name: &name}, labels, publishContext{})
 	p.retainedLoaded = true

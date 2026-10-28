@@ -28,7 +28,7 @@ All metric endpoints negotiate the Prometheus text format or OpenMetrics from th
 Prometheus client 1.24 metric-family filtering is available through repeatable `name[]` query parameters. For example:
 
 ```text
-/metrics?name[]=omada_device_cpu_percentage&name[]=omada_device_mem_percentage
+/metrics?name[]=net_device_cpu_percentage&name[]=net_device_mem_percentage
 ```
 
 The exporter uses a private registry instead of process-global registration. Overlapping requests to the same endpoint share one gather operation, and scrape concurrency and duration are bounded to prevent a slow controller from creating unbounded work.
@@ -80,14 +80,14 @@ device/client/WAN identity. For example, connected clients by source/site:
 
 ```promql
 sum by (job, instance, bridge_id, site, site_id) (
-  omada_client_connected_total
+  net_client_connected_total
 )
 ```
 
 Alternatively, filter one source explicitly before calculating a total:
 
 ```promql
-sum(omada_client_connected_total{job="omada-appt",instance="omada-appt:9040",bridge_id="slobidska44"})
+sum(net_client_connected_total{job="omada-appt",instance="omada-appt:9040",bridge_id="slobidska44"})
 ```
 
 Do not aggregate solely by a device name, MAC or site name across controllers:
@@ -107,7 +107,7 @@ device drill-downs retain source identity.
 | Variable | Default | Effect |
 | --- | --- | --- |
 | `OMADA_TRACK_PORT_METRICS` | `true` | Disable to suppress per-port metrics. |
-| `OMADA_TRACK_CLIENT_METRICS` | `true` | Disable to suppress per-client metrics while keeping `omada_client_connected_total`. |
+| `OMADA_TRACK_CLIENT_METRICS` | `true` | Disable to suppress per-client metrics while keeping `net_client_connected_total`. |
 | `OMADA_TRACK_INSIGHT_METRICS` | `false` | Enable optional DPI insight metrics from Omada Web API. |
 | `OMADA_TRACK_NETWORK_QUALITY_METRICS` | `false` | Enable AP wired-uplink packet counters and gateway WAN quality from OpenAPI. |
 | `OMADA_NETWORK_QUALITY_WINDOW_SECONDS` | `86400` | Rolling window for gateway WAN quality averages, not AP packet counters. |
@@ -135,96 +135,96 @@ OmadaBridge wraps each Omada collector with a small layer of scrape-health metri
 
 | Metric | Meaning | Labels |
 | --- | --- | --- |
-| `omada_collector_last_scrape_completed` | `1` when the collector returned without panicking, `0` when a panic was recovered. API errors handled inside individual collectors are still logged by that collector. | collector |
-| `omada_collector_last_scrape_duration_seconds` | Duration of the most recent collector scrape. | collector |
-| `omada_collector_panics_total` | Total recovered panics for the collector since process start. | collector |
+| `net_collector_last_scrape_completed` | `1` when the collector returned without panicking, `0` when a panic was recovered. API errors handled inside individual collectors are still logged by that collector. | collector |
+| `net_collector_last_scrape_duration_seconds` | Duration of the most recent collector scrape. | collector |
+| `net_collector_panics_total` | Total recovered panics for the collector since process start. | collector |
 
 ## Metric Reference
 
 | Metric | Meaning | Main labels |
 | --- | --- | --- |
-| `omada_controller_uptime_seconds` | Controller uptime in seconds. | controller device labels, site, site_id |
-| `omada_controller_storage_used_bytes` | Controller storage used. | storage_name, controller device labels, site, site_id |
-| `omada_controller_storage_available_bytes` | Controller free storage available. | storage_name, controller device labels, site, site_id |
-| `omada_controller_storage_total_bytes` | Controller total storage capacity. | storage_name, controller device labels, site, site_id |
-| `omada_controller_upgrade_available` | Firmware upgrade availability by channel. | upgrade_channel, latest_version, controller device labels, site, site_id |
-| `omada_site_alert_num` | Number of site alerts. | obscured, site, site_id |
-| `omada_device_uptime_seconds` | Device uptime in seconds. | device labels, site, site_id |
-| `omada_device_cpu_percentage` | Device CPU usage percentage. | device labels, site, site_id |
-| `omada_device_mem_percentage` | Device memory usage percentage. | device labels, site, site_id |
-| `omada_device_need_upgrade` | Device firmware upgrade required. | device labels, site, site_id |
-| `omada_device_download` | Device download traffic. | device labels, site, site_id |
-| `omada_device_upload` | Device upload traffic. | device labels, site, site_id |
-| `omada_device_temp` | Device temperature. | device labels, site, site_id |
-| `omada_device_tx_rate` | Device TX rate. | device labels, site, site_id |
-| `omada_device_rx_rate` | Device RX rate. | device labels, site, site_id |
-| `omada_device_poe_remain_watts` | Remaining device PoE power in watts. | device labels, PoE labels, site, site_id |
-| `omada_device_2g_tx_util` | 2.4 GHz TX utilization. | AP radio labels, device labels, site, site_id |
-| `omada_device_2g_rx_util` | 2.4 GHz RX utilization. | AP radio labels, device labels, site, site_id |
-| `omada_device_5g_tx_util` | 5 GHz TX utilization. | AP radio labels, device labels, site, site_id |
-| `omada_device_5g_rx_util` | 5 GHz RX utilization. | AP radio labels, device labels, site, site_id |
-| `omada_device_5g2_tx_util` | 5 GHz-2 TX utilization. | AP radio labels, device labels, site, site_id |
-| `omada_device_5g2_rx_util` | 5 GHz-2 RX utilization. | AP radio labels, device labels, site, site_id |
-| `omada_device_6g_tx_util` | 6 GHz TX utilization. | AP radio labels, device labels, site, site_id |
-| `omada_device_6g_rx_util` | 6 GHz RX utilization. | AP radio labels, device labels, site, site_id |
-| `omada_ap_interference_percentage` | Current radio interference, 0–100%; absent/invalid/offline readings omitted. No extra API calls. | device_mac, device_name, device_type, site, site_id, radio_band |
-| `omada_ap_uplink_packets_total` | Controller-reported cumulative wired-uplink packets; may reset. Optional network-quality collector. | device_mac, device_name, device_type, site, site_id, direction |
-| `omada_ap_uplink_dropped_packets_total` | Controller-reported cumulative wired-uplink dropped packets; may reset. | Same as AP uplink packets |
-| `omada_ap_uplink_error_packets_total` | Controller-reported cumulative wired-uplink error packets; may reset. | Same as AP uplink packets |
-| `omada_gateway_wan_quality_latency_average_seconds` | Gateway-wide rolling-window average WAN latency, converted from milliseconds. | device_mac, device_name, device_type, site, site_id |
-| `omada_gateway_wan_quality_jitter_average_seconds` | Gateway-wide rolling-window average WAN jitter, converted from milliseconds. | Same as WAN quality latency |
-| `omada_gateway_wan_quality_packet_loss_average_percentage` | Gateway-wide rolling-window average WAN loss percentage. | Same as WAN quality latency |
-| `omada_gateway_wan_quality_mos_average` | Gateway-wide rolling-window mean opinion score. | Same as WAN quality latency |
-| `omada_gateway_wan_quality_window_seconds` | Window used for available WAN quality measurements. | Same as WAN quality latency |
-| `omada_network_quality_scrape_success` | Success of each attempted inventory/AP uplink/WAN quality query; successful empty responses are not proof of available measurements. | device_mac, device_name, device_type, site, site_id, source |
-| `omada_network_quality_available` | At least one valid measurement is available for a device/source; zero for offline, wireless AP uplinks, empty, unsupported or failed queries. | Same as network quality scrape success |
-| `omada_port_link_status` | Port link status. | device labels, port, max_speed, name, type, operation, link_status, link_speed, poe, port_activity_label |
-| `omada_port_power_watts` | Current PoE usage for a port. | device labels, port labels |
-| `omada_port_link_speed_mbps` | Port link speed in Mbit/s. | device labels, port labels |
-| `omada_port_link_rx` | Bytes received on a port. | device labels, port labels |
-| `omada_port_link_tx` | Bytes transmitted on a port. | device labels, port labels |
-| `omada_lag_link_status` | LAG link status. | device labels, lag_id, lag_type, name, link_status, link_speed, lag_ports |
-| `omada_lag_link_speed_mbps` | LAG link speed in Mbit/s. | device labels, LAG labels |
-| `omada_lag_link_rx` | Bytes received on a LAG. | device labels, LAG labels |
-| `omada_lag_link_tx` | Bytes transmitted on a LAG. | device labels, LAG labels |
-| `omada_wan_status` | WAN connected/disconnected status. | device labels, port, name, desc, type, ip, proto |
-| `omada_wan_internet_state` | WAN internet connected/disconnected state. | device labels, WAN labels |
-| `omada_wan_link_speed_mbps` | WAN link speed in Mbit/s. | device labels, WAN labels |
-| `omada_wan_rx_rate` | WAN RX rate reported by Omada. | device labels, WAN labels |
-| `omada_wan_tx_rate` | WAN TX rate reported by Omada. | device labels, WAN labels |
-| `omada_wan_latency` | WAN latency in milliseconds. | device labels, WAN labels |
-| `omada_client_connected_total` | Total connected clients. | site, site_id, connection_mode, wifi_mode |
-| `omada_client_download_activity_bytes` | Current client download activity. | client identity, topology, SSID, site, site_id |
-| `omada_client_upload_activity_bytes` | Current client upload activity. | client identity, topology, SSID, site, site_id |
-| `omada_client_signal_pct` | Wireless client signal quality percentage. | client identity, topology, SSID, site, site_id |
-| `omada_client_snr_dbm` | Wireless client signal-to-noise ratio. | client identity, topology, SSID, site, site_id |
-| `omada_client_rssi_dbm` | Wireless client RSSI. | client identity, topology, SSID, site, site_id |
-| `omada_client_traffic_down_bytes` | Total bytes received by a client. | client identity, topology, SSID, site, site_id |
-| `omada_client_traffic_up_bytes` | Total bytes sent by a client. | client identity, topology, SSID, site, site_id |
-| `omada_client_tx_rate` | Client TX negotiation rate in bit/s. | client identity, topology, SSID, site, site_id |
-| `omada_client_rx_rate` | Client RX negotiation rate in bit/s. | client identity, topology, SSID, site, site_id |
-| `omada_vpn_status` | VPN enabled/disabled status. | vpn_id, name, purpose, vpn_mode, vpn_type, remote_ip, site, site_id, VPN detail labels |
-| `omada_vpn_uptime` | VPN tunnel uptime. | name, interface_name, vpn_mode, vpn_type, local_ip, remote_ip, site, site_id, VPN detail labels |
-| `omada_vpn_down_packets` | VPN downlink packets. | VPN tunnel labels |
-| `omada_vpn_down_bytes` | VPN downlink bytes. | VPN tunnel labels |
-| `omada_vpn_up_packets` | VPN uplink packets. | VPN tunnel labels |
-| `omada_vpn_up_bytes` | VPN uplink bytes. | VPN tunnel labels |
-| `omada_site_to_site_vpn_down_bytes` | Site-to-site VPN aggregate downlink bytes. | vpn_id, name, vpn_type, site_vpn_type, site, site_id, VPN detail labels |
-| `omada_site_to_site_vpn_up_bytes` | Site-to-site VPN aggregate uplink bytes. | vpn_id, name, vpn_type, site_vpn_type, site, site_id, VPN detail labels |
-| `omada_site_to_site_vpn_total_peers` | Site-to-site VPN peer count. | vpn_id, tunnel_id, name, vpn_type, direction, local/remote IP labels, site, site_id, VPN detail labels |
-| `omada_site_to_site_vpn_peer_status` | Site-to-site VPN peer online status, when returned by Omada. | site-to-site peer labels |
-| `omada_site_to_site_vpn_peer_down_packets` | Site-to-site VPN peer downlink packets, when returned by Omada. | site-to-site peer labels |
-| `omada_site_to_site_vpn_peer_down_bytes` | Site-to-site VPN peer downlink bytes. | vpn_id, name, peer_id, peer_name, vpn_type, local_ip, remote_ip, port, site, site_id, VPN detail labels |
-| `omada_site_to_site_vpn_peer_up_packets` | Site-to-site VPN peer uplink packets, when returned by Omada. | site-to-site peer labels |
-| `omada_site_to_site_vpn_peer_up_bytes` | Site-to-site VPN peer uplink bytes. | site-to-site peer labels |
-| `omada_site_to_site_vpn_peer_login_timestamp` | Unix login timestamp for a site-to-site VPN peer. | site-to-site peer labels |
-| `omada_isp_status` | ISP enabled/disabled status. | gateway_name, gateway_mac, gateway_status, name, port, status, ip, load_balance, max_bandwidth, download_speed_set, site, site_id |
-| `omada_isp_download_speed` | Configured ISP download speed. | ISP labels |
-| `omada_isp_upload_speed` | Configured ISP upload speed. | ISP labels |
-| `omada_dpi_scrape_window_seconds` | Configured DPI insight query window. | site, site_id |
-| `omada_dpi_total_traffic_bytes` | Total DPI-classified traffic for the configured window. | site, site_id |
-| `omada_dpi_category_traffic_bytes` | DPI-classified traffic by category for the configured window. | family_id, family_name, site, site_id |
-| `omada_dpi_application_traffic_bytes` | DPI-classified traffic by application for the configured window. | family_id, family_name, application_id, application_name, site, site_id |
+| `net_controller_uptime_seconds` | Controller uptime in seconds. | controller device labels, site, site_id |
+| `net_controller_storage_used_bytes` | Controller storage used. | storage_name, controller device labels, site, site_id |
+| `net_controller_storage_available_bytes` | Controller free storage available. | storage_name, controller device labels, site, site_id |
+| `net_controller_storage_total_bytes` | Controller total storage capacity. | storage_name, controller device labels, site, site_id |
+| `net_controller_upgrade_available` | Firmware upgrade availability by channel. | upgrade_channel, latest_version, controller device labels, site, site_id |
+| `net_site_alert_num` | Number of site alerts. | obscured, site, site_id |
+| `net_device_uptime_seconds` | Device uptime in seconds. | device labels, site, site_id |
+| `net_device_cpu_percentage` | Device CPU usage percentage. | device labels, site, site_id |
+| `net_device_mem_percentage` | Device memory usage percentage. | device labels, site, site_id |
+| `net_device_need_upgrade` | Device firmware upgrade required. | device labels, site, site_id |
+| `net_device_download` | Device download traffic. | device labels, site, site_id |
+| `net_device_upload` | Device upload traffic. | device labels, site, site_id |
+| `net_device_temp` | Device temperature. | device labels, site, site_id |
+| `net_device_tx_rate` | Device TX rate. | device labels, site, site_id |
+| `net_device_rx_rate` | Device RX rate. | device labels, site, site_id |
+| `net_device_poe_remain_watts` | Remaining device PoE power in watts. | device labels, PoE labels, site, site_id |
+| `net_device_2g_tx_util` | 2.4 GHz TX utilization. | AP radio labels, device labels, site, site_id |
+| `net_device_2g_rx_util` | 2.4 GHz RX utilization. | AP radio labels, device labels, site, site_id |
+| `net_device_5g_tx_util` | 5 GHz TX utilization. | AP radio labels, device labels, site, site_id |
+| `net_device_5g_rx_util` | 5 GHz RX utilization. | AP radio labels, device labels, site, site_id |
+| `net_device_5g2_tx_util` | 5 GHz-2 TX utilization. | AP radio labels, device labels, site, site_id |
+| `net_device_5g2_rx_util` | 5 GHz-2 RX utilization. | AP radio labels, device labels, site, site_id |
+| `net_device_6g_tx_util` | 6 GHz TX utilization. | AP radio labels, device labels, site, site_id |
+| `net_device_6g_rx_util` | 6 GHz RX utilization. | AP radio labels, device labels, site, site_id |
+| `net_ap_interference_percentage` | Current radio interference, 0–100%; absent/invalid/offline readings omitted. No extra API calls. | device_mac, device_name, device_type, site, site_id, radio_band |
+| `net_ap_uplink_packets_total` | Controller-reported cumulative wired-uplink packets; may reset. Optional network-quality collector. | device_mac, device_name, device_type, site, site_id, direction |
+| `net_ap_uplink_dropped_packets_total` | Controller-reported cumulative wired-uplink dropped packets; may reset. | Same as AP uplink packets |
+| `net_ap_uplink_error_packets_total` | Controller-reported cumulative wired-uplink error packets; may reset. | Same as AP uplink packets |
+| `net_gateway_wan_quality_latency_average_seconds` | Gateway-wide rolling-window average WAN latency, converted from milliseconds. | device_mac, device_name, device_type, site, site_id |
+| `net_gateway_wan_quality_jitter_average_seconds` | Gateway-wide rolling-window average WAN jitter, converted from milliseconds. | Same as WAN quality latency |
+| `net_gateway_wan_quality_packet_loss_average_percentage` | Gateway-wide rolling-window average WAN loss percentage. | Same as WAN quality latency |
+| `net_gateway_wan_quality_mos_average` | Gateway-wide rolling-window mean opinion score. | Same as WAN quality latency |
+| `net_gateway_wan_quality_window_seconds` | Window used for available WAN quality measurements. | Same as WAN quality latency |
+| `net_network_quality_scrape_success` | Success of each attempted inventory/AP uplink/WAN quality query; successful empty responses are not proof of available measurements. | device_mac, device_name, device_type, site, site_id, source |
+| `net_network_quality_available` | At least one valid measurement is available for a device/source; zero for offline, wireless AP uplinks, empty, unsupported or failed queries. | Same as network quality scrape success |
+| `net_port_link_status` | Port link status. | device labels, port, max_speed, name, type, operation, link_status, link_speed, poe, port_activity_label |
+| `net_port_power_watts` | Current PoE usage for a port. | device labels, port labels |
+| `net_port_link_speed_mbps` | Port link speed in Mbit/s. | device labels, port labels |
+| `net_port_link_rx` | Bytes received on a port. | device labels, port labels |
+| `net_port_link_tx` | Bytes transmitted on a port. | device labels, port labels |
+| `net_lag_link_status` | LAG link status. | device labels, lag_id, lag_type, name, link_status, link_speed, lag_ports |
+| `net_lag_link_speed_mbps` | LAG link speed in Mbit/s. | device labels, LAG labels |
+| `net_lag_link_rx` | Bytes received on a LAG. | device labels, LAG labels |
+| `net_lag_link_tx` | Bytes transmitted on a LAG. | device labels, LAG labels |
+| `net_wan_status` | WAN connected/disconnected status. | device labels, port, name, desc, type, ip, proto |
+| `net_wan_internet_state` | WAN internet connected/disconnected state. | device labels, WAN labels |
+| `net_wan_link_speed_mbps` | WAN link speed in Mbit/s. | device labels, WAN labels |
+| `net_wan_rx_rate` | WAN RX rate reported by Omada. | device labels, WAN labels |
+| `net_wan_tx_rate` | WAN TX rate reported by Omada. | device labels, WAN labels |
+| `net_wan_latency` | WAN latency in milliseconds. | device labels, WAN labels |
+| `net_client_connected_total` | Total connected clients. | site, site_id, connection_mode, wifi_mode |
+| `net_client_download_activity_bytes` | Current client download activity. | client identity, topology, SSID, site, site_id |
+| `net_client_upload_activity_bytes` | Current client upload activity. | client identity, topology, SSID, site, site_id |
+| `net_client_signal_pct` | Wireless client signal quality percentage. | client identity, topology, SSID, site, site_id |
+| `net_client_snr_dbm` | Wireless client signal-to-noise ratio. | client identity, topology, SSID, site, site_id |
+| `net_client_rssi_dbm` | Wireless client RSSI. | client identity, topology, SSID, site, site_id |
+| `net_client_traffic_down_bytes` | Total bytes received by a client. | client identity, topology, SSID, site, site_id |
+| `net_client_traffic_up_bytes` | Total bytes sent by a client. | client identity, topology, SSID, site, site_id |
+| `net_client_tx_rate` | Client TX negotiation rate in bit/s. | client identity, topology, SSID, site, site_id |
+| `net_client_rx_rate` | Client RX negotiation rate in bit/s. | client identity, topology, SSID, site, site_id |
+| `net_vpn_status` | VPN enabled/disabled status. | vpn_id, name, purpose, vpn_mode, vpn_type, remote_ip, site, site_id, VPN detail labels |
+| `net_vpn_uptime` | VPN tunnel uptime. | name, interface_name, vpn_mode, vpn_type, local_ip, remote_ip, site, site_id, VPN detail labels |
+| `net_vpn_down_packets` | VPN downlink packets. | VPN tunnel labels |
+| `net_vpn_down_bytes` | VPN downlink bytes. | VPN tunnel labels |
+| `net_vpn_up_packets` | VPN uplink packets. | VPN tunnel labels |
+| `net_vpn_up_bytes` | VPN uplink bytes. | VPN tunnel labels |
+| `net_site_to_site_vpn_down_bytes` | Site-to-site VPN aggregate downlink bytes. | vpn_id, name, vpn_type, site_vpn_type, site, site_id, VPN detail labels |
+| `net_site_to_site_vpn_up_bytes` | Site-to-site VPN aggregate uplink bytes. | vpn_id, name, vpn_type, site_vpn_type, site, site_id, VPN detail labels |
+| `net_site_to_site_vpn_total_peers` | Site-to-site VPN peer count. | vpn_id, tunnel_id, name, vpn_type, direction, local/remote IP labels, site, site_id, VPN detail labels |
+| `net_site_to_site_vpn_peer_status` | Site-to-site VPN peer online status, when returned by Omada. | site-to-site peer labels |
+| `net_site_to_site_vpn_peer_down_packets` | Site-to-site VPN peer downlink packets, when returned by Omada. | site-to-site peer labels |
+| `net_site_to_site_vpn_peer_down_bytes` | Site-to-site VPN peer downlink bytes. | vpn_id, name, peer_id, peer_name, vpn_type, local_ip, remote_ip, port, site, site_id, VPN detail labels |
+| `net_site_to_site_vpn_peer_up_packets` | Site-to-site VPN peer uplink packets, when returned by Omada. | site-to-site peer labels |
+| `net_site_to_site_vpn_peer_up_bytes` | Site-to-site VPN peer uplink bytes. | site-to-site peer labels |
+| `net_site_to_site_vpn_peer_login_timestamp` | Unix login timestamp for a site-to-site VPN peer. | site-to-site peer labels |
+| `net_isp_status` | ISP enabled/disabled status. | gateway_name, gateway_mac, gateway_status, name, port, status, ip, load_balance, max_bandwidth, download_speed_set, site, site_id |
+| `net_isp_download_speed` | Configured ISP download speed. | ISP labels |
+| `net_isp_upload_speed` | Configured ISP upload speed. | ISP labels |
+| `net_dpi_scrape_window_seconds` | Configured DPI insight query window. | site, site_id |
+| `net_dpi_total_traffic_bytes` | Total DPI-classified traffic for the configured window. | site, site_id |
+| `net_dpi_category_traffic_bytes` | DPI-classified traffic by category for the configured window. | family_id, family_name, site, site_id |
+| `net_dpi_application_traffic_bytes` | DPI-classified traffic by application for the configured window. | family_id, family_name, application_id, application_name, site, site_id |
 
 VPN detail labels, when returned by the Omada API, include `local_ip`, `local_networks`, `remote_networks`, `allowed_ips`, `endpoint`, and `endpoint_ip`.
 
@@ -258,29 +258,29 @@ and Wi-Fi-mode labels.
 Connected clients (preserving bridge and site identity):
 
 ```promql
-sum by (job, instance, bridge_id, site, site_id) (omada_client_connected_total)
+sum by (job, instance, bridge_id, site, site_id) (net_client_connected_total)
 ```
 
 Offline Omada devices:
 
 ```promql
-omada_device_uptime_seconds unless omada_device_uptime_seconds > 0
+net_device_uptime_seconds unless net_device_uptime_seconds > 0
 ```
 
 Ports with active links:
 
 ```promql
-sum by (job, instance, bridge_id, site, site_id, device_mac, device_name) (omada_port_link_status == 1)
+sum by (job, instance, bridge_id, site, site_id, device_mac, device_name) (net_port_link_status == 1)
 ```
 
 Devices needing firmware updates:
 
 ```promql
-omada_device_need_upgrade == 1
+net_device_need_upgrade == 1
 ```
 
 WAN latency:
 
 ```promql
-omada_wan_latency
+net_wan_latency
 ```

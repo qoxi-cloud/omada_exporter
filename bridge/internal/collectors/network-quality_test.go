@@ -61,11 +61,11 @@ func TestNetworkQualityValuesTypesAndLabels(t *testing.T) {
 	}
 	families := gatherQuality(t, c)
 	for name, want := range map[string]float64{
-		"omada_gateway_wan_quality_latency_average_seconds":        .25,
-		"omada_gateway_wan_quality_jitter_average_seconds":         0,
-		"omada_gateway_wan_quality_packet_loss_average_percentage": 0,
-		"omada_gateway_wan_quality_mos_average":                    4.2,
-		"omada_gateway_wan_quality_window_seconds":                 3600,
+		"net_gateway_wan_quality_latency_average_seconds":        .25,
+		"net_gateway_wan_quality_jitter_average_seconds":         0,
+		"net_gateway_wan_quality_packet_loss_average_percentage": 0,
+		"net_gateway_wan_quality_mos_average":                    4.2,
+		"net_gateway_wan_quality_window_seconds":                 3600,
 	} {
 		f := families[name]
 		if f == nil || f.GetType() != dto.MetricType_GAUGE || len(f.Metric) != 1 || f.Metric[0].Gauge.GetValue() != want {
@@ -73,9 +73,9 @@ func TestNetworkQualityValuesTypesAndLabels(t *testing.T) {
 		}
 	}
 	for name, expected := range map[string]map[string]float64{
-		"omada_ap_uplink_packets_total":         {"up": 100, "down": 200},
-		"omada_ap_uplink_dropped_packets_total": {"up": 0, "down": 3},
-		"omada_ap_uplink_error_packets_total":   {"up": 0, "down": 1},
+		"net_ap_uplink_packets_total":         {"up": 100, "down": 200},
+		"net_ap_uplink_dropped_packets_total": {"up": 0, "down": 3},
+		"net_ap_uplink_error_packets_total":   {"up": 0, "down": 1},
 	} {
 		f := families[name]
 		if f == nil || f.GetType() != dto.MetricType_COUNTER || len(f.Metric) != 2 {
@@ -113,12 +113,12 @@ func TestNetworkQualityUnsupportedAndFailuresDoNotProduceZeros(t *testing.T) {
 			if len(families) != 2 {
 				t.Fatalf("only status families expected, got %v", families)
 			}
-			for _, m := range families["omada_network_quality_available"].Metric {
+			for _, m := range families["net_network_quality_available"].Metric {
 				if m.Gauge.GetValue() != 0 {
 					t.Error("unavailable measurement reported available")
 				}
 			}
-			for _, m := range families["omada_network_quality_scrape_success"].Metric {
+			for _, m := range families["net_network_quality_scrape_success"].Metric {
 				for _, l := range m.Label {
 					if l.GetName() == "source" && l.GetValue() != "inventory" && m.Gauge.GetValue() != boolFloat64(!failure) {
 						t.Error("incorrect API success")
@@ -133,7 +133,7 @@ func TestNetworkQualityPartialFailureKeepsHealthySources(t *testing.T) {
 	c := qualityTestCollector()
 	c.getAPUplink = func(string) (*model.APUplinkStats, error) { return nil, errors.New("API unsupported") }
 	f := gatherQuality(t, c)
-	if f["omada_gateway_wan_quality_mos_average"] == nil || f["omada_ap_uplink_packets_total"] != nil {
+	if f["net_gateway_wan_quality_mos_average"] == nil || f["net_ap_uplink_packets_total"] != nil {
 		t.Fatal("partial failure lost healthy source or fabricated AP data")
 	}
 }
@@ -152,7 +152,7 @@ func TestNetworkQualitySkipsOfflineAndWirelessUplinks(t *testing.T) {
 	c.getAPUplink = func(string) (*model.APUplinkStats, error) { t.Error("unexpected AP call"); return nil, nil }
 	c.getWANQuality = func(string, int) (*model.WANQuality, error) { t.Error("unexpected WAN call"); return nil, nil }
 	f := gatherQuality(t, c)
-	if len(f["omada_network_quality_available"].Metric) != 5 || len(f["omada_network_quality_scrape_success"].Metric) != 1 {
+	if len(f["net_network_quality_available"].Metric) != 5 || len(f["net_network_quality_scrape_success"].Metric) != 1 {
 		t.Fatal("bad skipped-device status")
 	}
 }
@@ -167,7 +167,7 @@ func TestNetworkQualityDisabledAndInventoryFailure(t *testing.T) {
 	c.client.Settings().TrackNetworkQualityMetrics = true
 	c.getDevices = func() ([]model.DevicesInterface, error) { return nil, errors.New("inventory failed") }
 	f := gatherQuality(t, c)
-	if len(f) != 1 || f["omada_network_quality_scrape_success"].Metric[0].Gauge.GetValue() != 0 {
+	if len(f) != 1 || f["net_network_quality_scrape_success"].Metric[0].Gauge.GetValue() != 0 {
 		t.Fatal("inventory failure not reported")
 	}
 }
@@ -183,7 +183,7 @@ func TestNetworkQualityFiltersInvalidReadingsAndUsesDefaultWindow(t *testing.T) 
 	}
 	f := gatherQuality(t, c)
 	for name := range f {
-		if strings.HasPrefix(name, "omada_gateway_wan_quality_") {
+		if strings.HasPrefix(name, "net_gateway_wan_quality_") {
 			t.Errorf("invalid metric %s exported", name)
 		}
 	}
@@ -202,7 +202,7 @@ func TestAPRadioInterferencePresenceAndBands(t *testing.T) {
 	close(metrics)
 	got := map[string]float64{}
 	for metric := range metrics {
-		if !strings.Contains(metric.Desc().String(), "omada_ap_interference_percentage") {
+		if !strings.Contains(metric.Desc().String(), "net_ap_interference_percentage") {
 			continue
 		}
 		m := &dto.Metric{}
@@ -237,7 +237,7 @@ func TestAPRadioInterferenceOmitsMissingInvalidAndOffline(t *testing.T) {
 		_ = c.collectAccessPoint(ch, &ap, "site-id")
 		close(ch)
 		for metric := range ch {
-			if strings.Contains(metric.Desc().String(), "omada_ap_interference_percentage") {
+			if strings.Contains(metric.Desc().String(), "net_ap_interference_percentage") {
 				t.Errorf("invalid interference emitted for %s", payload)
 			}
 		}

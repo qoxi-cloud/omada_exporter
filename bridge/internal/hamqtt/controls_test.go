@@ -183,7 +183,7 @@ func TestControlDiscoveryContractAndDeviceRegistryIdentity(t *testing.T) {
 				if len(discovery["availability"].([]any)) != 3 {
 					t.Fatal("missing bridge/global/target availability")
 				}
-				if attrs["omada_control"] != action || attrs["target_mac"] != button.MAC || attrs["site_id"] != "same-site-id" || attrs["site"] != "Default" {
+				if attrs["net_control"] != action || attrs["target_mac"] != button.MAC || attrs["site_id"] != "same-site-id" || attrs["site"] != "Default" {
 					t.Fatalf("wrong attrs: %#v", attrs)
 				}
 				if _, exists := attrs["metric"]; exists {
@@ -197,12 +197,12 @@ func TestControlDiscoveryContractAndDeviceRegistryIdentity(t *testing.T) {
 					t.Fatal("missing bridge scope")
 				}
 				labels := p.scopedLabels(map[string]string{"site": "Default", "site_id": "same-site-id"})
-				metric := "omada_device_status"
+				metric := "net_device_status"
 				if action == controlReboot {
 					labels["device_mac"] = button.MAC
 				} else {
 					labels["mac"] = button.MAC
-					metric = "omada_client_device_tracker"
+					metric = "net_client_device_tracker"
 				}
 				want := deviceInfo(p.client, metric, labels)["identifiers"]
 				if !reflect.DeepEqual(button.Config["device"].(map[string]any)["identifiers"], want) {

@@ -61,14 +61,14 @@ Commands use QoS 0 and `retain: false`. Reboot/reconnect keep the exact payload 
 Buttons use the existing device/client registry identity and expose these JSON attributes for card integrations:
 
 ```yaml
-omada_control: reboot_device # or reconnect_client
+net_control: reboot_device # or reconnect_client
 target_mac: aa:bb:cc:dd:ee:ff
 site: Default
 site_id: controller-site-id
 bridge_id: slobidska44 # omitted for the legacy bridge
 ```
 
-For `omada_control: power_cycle_poe`, `target_mac` identifies the supplying switch/gateway, with numeric `target_port`, `switch_name` (the supplying device name), and `port_name`. Optional `powered_device_mac` and `powered_device_name` identify a controller-confirmed powered endpoint. The same port button serves both explicit port actions and eligible client/device shortcuts; it is grouped under the supplying HA device.
+For `net_control: power_cycle_poe`, `target_mac` identifies the supplying switch/gateway, with numeric `target_port`, `switch_name` (the supplying device name), and `port_name`. Optional `powered_device_mac` and `powered_device_name` identify a controller-confirmed powered endpoint. The same port button serves both explicit port actions and eligible client/device shortcuts; it is grouped under the supplying HA device.
 
 Control attributes deliberately have no `metric` field. After a request, `last_status` is `accepted`, `rejected`, or `failed`, with `last_status_at` as a UTC timestamp; controller response bodies and credentials are not published. `accepted` means the controller accepted the request, **not** that the reboot/reconnection/power-cycle completed. Cards therefore report “Request sent” and continue showing normal live telemetry.
 
@@ -218,9 +218,9 @@ name, interface_name, vpn_mode, vpn_type
 Examples:
 
 ```text
-omada_device_cpu_percentage_device_mac_aa_bb_cc_dd_ee_ff_2f9d4c2a10
-omada_port_link_status_site_default_device_mac_aa_bb_cc_dd_ee_ff_port_1_abc123def0
-omada_client_signal_pct_mac_11_22_33_44_55_66_6c7d8e9f10
+net_device_cpu_percentage_device_mac_aa_bb_cc_dd_ee_ff_2f9d4c2a10
+net_port_link_status_site_default_device_mac_aa_bb_cc_dd_ee_ff_port_1_abc123def0
+net_client_signal_pct_mac_11_22_33_44_55_66_6c7d8e9f10
 ```
 
 ## Created Home Assistant Devices
@@ -231,7 +231,7 @@ Used when a metric is site-level and does not identify a specific device, client
 
 | Field | Value |
 | --- | --- |
-| Identifier | `omada_site_<site_id_or_site_slug>` |
+| Identifier | `net_site_<site_id_or_site_slug>` |
 | Name | `Omada <site name>` |
 | Manufacturer | `TP-Link Omada` |
 | Model | `Site` |
@@ -242,7 +242,7 @@ Used when labels include `device_mac`. This covers controllers, gateways, switch
 
 | Field | Value |
 | --- | --- |
-| Identifier | `omada_device_<device_mac_slug>` |
+| Identifier | `net_device_<device_mac_slug>` |
 | Name | `device_name`, fallback `device_mac` |
 | Manufacturer | `TP-Link` |
 | Model | `device_show_model`, fallback `device_model` |
@@ -256,7 +256,7 @@ Some ISP metrics identify a gateway through `gateway_mac` instead of `device_mac
 
 | Field | Value |
 | --- | --- |
-| Identifier | `omada_device_<gateway_mac_slug>` |
+| Identifier | `net_device_<gateway_mac_slug>` |
 | Name | `gateway_name`, fallback `gateway_mac` |
 | Manufacturer | `TP-Link` |
 | Configuration URL | `OMADA_HOST` |
@@ -267,7 +267,7 @@ Used for per-client metrics and MQTT device trackers.
 
 | Field | Value |
 | --- | --- |
-| Identifier | `omada_client_<client_mac_slug>` |
+| Identifier | `net_client_<client_mac_slug>` |
 | Name | `name`, `host_name`, `system_name`, `ip`, `mac`, fallback `Omada Client` |
 | Manufacturer | `vendor`, fallback `Unknown` |
 | Model | `device_type`, fallback `device_category` |
@@ -280,7 +280,7 @@ Used when metrics include `vpn_id`.
 
 | Field | Value |
 | --- | --- |
-| Identifier | `omada_vpn_<vpn_id_slug>` |
+| Identifier | `net_vpn_<vpn_id_slug>` |
 | Name | `name`, fallback `vpn_id` |
 | Manufacturer | `TP-Link Omada` |
 | Model | `vpn_type`, fallback `VPN` |
@@ -295,13 +295,13 @@ These metrics are published as `binary_sensor` entities:
 
 | Metric | Device class |
 | --- | --- |
-| `omada_controller_upgrade_available` | `problem` |
-| `omada_device_need_upgrade` | `problem` |
-| `omada_port_link_status` | `connectivity` |
-| `omada_lag_link_status` | `connectivity` |
-| `omada_isp_status` | `connectivity` |
-| `omada_vpn_status` | `connectivity` |
-| `omada_site_to_site_vpn_peer_status` | `connectivity` |
+| `net_controller_upgrade_available` | `problem` |
+| `net_device_need_upgrade` | `problem` |
+| `net_port_link_status` | `connectivity` |
+| `net_lag_link_status` | `connectivity` |
+| `net_isp_status` | `connectivity` |
+| `net_vpn_status` | `connectivity` |
+| `net_site_to_site_vpn_peer_status` | `connectivity` |
 
 Binary sensor config uses:
 
@@ -344,8 +344,8 @@ Every active client with a MAC address gets a `device_tracker` discovery config.
 
 | Field | Value |
 | --- | --- |
-| Unique id | `omada_client_<client_mac_slug>` |
-| Object id | `omada_client_<client_mac_slug>` |
+| Unique id | `net_client_<client_mac_slug>` |
+| Object id | `net_client_<client_mac_slug>` |
 | Source type | `router` |
 | State payloads | `home`, `not_home` |
 
@@ -405,11 +405,11 @@ Examples:
 
 | Metric and labels | Name |
 | --- | --- |
-| `omada_device_cpu_percentage` | `Device Cpu Percentage` |
-| `omada_port_link_status`, `port=1` | `Port Link Status Port 1` |
-| `omada_lag_link_speed_mbps`, `lag_id=2` | `Lag Link Speed Mbps LAG 2` |
-| `omada_client_connected_total`, `connection_mode=wireless`, `wifi_mode=11ax` | `Client Connected Total wireless 11ax` |
-| `omada_isp_status`, `name=WAN1` | `Isp Status WAN1` |
+| `net_device_cpu_percentage` | `Device Cpu Percentage` |
+| `net_port_link_status`, `port=1` | `Port Link Status Port 1` |
+| `net_lag_link_speed_mbps`, `lag_id=2` | `Lag Link Speed Mbps LAG 2` |
+| `net_client_connected_total`, `connection_mode=wireless`, `wifi_mode=11ax` | `Client Connected Total wireless 11ax` |
+| `net_isp_status`, `name=WAN1` | `Isp Status WAN1` |
 
 Home Assistant can still apply its own display naming rules depending on device/entity registry state.
 
@@ -420,7 +420,7 @@ Metric state payloads are JSON:
 ```json
 {
   "value": 1,
-  "metric": "omada_port_link_status",
+  "metric": "net_port_link_status",
   "help": "A boolean representing the link status of the port.",
   "last_updated": "2026-05-06T12:00:00Z",
   "device_mac": "aa:bb:cc:dd:ee:ff",
@@ -443,7 +443,7 @@ The bundled cards read Home Assistant entities, not OmadaBridge HTTP endpoints. 
 - `mac`, `ip`, `host_name`, `vendor`, `ssid`, `wifi_mode`, AP/switch/gateway labels for clients
 - client `port` and `lag_id` attributes for its parent wired path
 - `lag_id` and LAG metrics only on the owning switch/gateway
-- `omada_isp_*`, `omada_wan_*`, and `omada_vpn_*` metrics for link tables
+- `net_isp_*`, `net_wan_*`, and `net_vpn_*` metrics for link tables
 - `device_tracker` entities with a `mac` attribute for active client presence
 
 See [card docs](../../ha-cards/docs/index.md).

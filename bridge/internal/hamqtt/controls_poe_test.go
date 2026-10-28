@@ -108,7 +108,7 @@ func TestPoEControlDiscoveryUsesOwnerPortAndBinding(t *testing.T) {
 					}
 				}
 				labels := p.scopedLabels(map[string]string{"site": "Default", "site_id": "same-site-id", "device_mac": button.MAC})
-				want := deviceInfo(p.client, "omada_device_status", labels)["identifiers"]
+				want := deviceInfo(p.client, "net_device_status", labels)["identifiers"]
 				if !reflect.DeepEqual(button.Config["device"].(map[string]any)["identifiers"], want) {
 					t.Fatal("PoE button is not grouped under its owner")
 				}
@@ -123,7 +123,7 @@ func TestPoEControlDiscoveryUsesOwnerPortAndBinding(t *testing.T) {
 func TestPoEControlPortsRemainDistinctAndLegacyIDsStayUnchanged(t *testing.T) {
 	p, provider, _ := poeControlFixture(t, "slobidska44")
 	legacy := controlButtonFor(t, p, controlReboot)
-	wantID := "omada_control_" + p.controlSiteKey() + "_reboot_device_aa_bb_cc_dd_ee_01"
+	wantID := "net_control_" + p.controlSiteKey() + "_reboot_device_aa_bb_cc_dd_ee_01"
 	if legacy.Config["object_id"] != wantID || legacy.Payload != "PRESS" || !strings.HasSuffix(legacy.CommandTopic, "/reboot_device/aa_bb_cc_dd_ee_01/command") {
 		t.Fatal("legacy identity or payload changed")
 	}

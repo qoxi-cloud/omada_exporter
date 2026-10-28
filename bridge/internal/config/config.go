@@ -51,4 +51,5 @@ type Config struct {
 	MQTTRetain                  bool
 	MQTTExpireAfter             int
 	MQTTTrackedClientMACs       string
+	MQTTClientRetentionHours    int
 }

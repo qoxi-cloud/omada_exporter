@@ -62,7 +62,7 @@ func NewVpnCollector(apiClient *omada.Client) *vpnCollector {
 	labels = append(labels, model.VPNDetailLabelNames()...)
 
 	return &vpnCollector{
-		omadaVpnStatus: prometheus.NewDesc("omada_vpn_status",
+		omadaVpnStatus: prometheus.NewDesc("net_vpn_status",
 			"The current status of the VPN enabled/disabled",
 			labels,
 			nil,

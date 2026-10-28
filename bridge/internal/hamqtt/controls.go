@@ -216,17 +216,17 @@ func (p *Publisher) makeControlButton(target omada.ControlTarget) (controlButton
 	button.PoweredDeviceMAC = poweredDeviceMAC
 	button.Payload = "PRESS"
 	button.Attributes = map[string]any{
-		"omada_control": action, "target_mac": mac, "site": p.client.Settings().Site, "site_id": siteID,
+		"net_control": action, "target_mac": mac, "site": p.client.Settings().Site, "site_id": siteID,
 	}
 	if p.client.Settings().BridgeID != "" {
 		button.Attributes["bridge_id"] = p.client.Settings().BridgeID
 	}
 	labels := p.scopedLabels(map[string]string{"site": p.client.Settings().Site, "site_id": siteID})
-	metric, name, icon := "omada_device_status", "Reboot device", "mdi:restart"
+	metric, name, icon := "net_device_status", "Reboot device", "mdi:restart"
 	if action != controlReconnect {
 		labels["device_mac"], labels["device_name"], labels["device_model"] = mac, target.Name, target.Model
 	} else {
-		metric, name, icon = "omada_client_device_tracker", "Reconnect Wi-Fi client", "mdi:wifi-refresh"
+		metric, name, icon = "net_client_device_tracker", "Reconnect Wi-Fi client", "mdi:wifi-refresh"
 		labels["mac"], labels["name"] = mac, target.Name
 	}
 	if action == omada.ControlActionPowerCyclePoE {
@@ -260,7 +260,7 @@ func (p *Publisher) makeControlButton(target omada.ControlTarget) (controlButton
 }
 
 func (p *Publisher) controlObjectID(siteKey, action, mac string, port int, poweredDeviceMAC string) string {
-	return "omada_control_" + siteKey + "_" + action + "_" + controlTargetLeaf(mac, port, poweredDeviceMAC)
+	return "net_control_" + siteKey + "_" + action + "_" + controlTargetLeaf(mac, port, poweredDeviceMAC)
 }
 
 func (p *Publisher) controlButtonTopics(siteKey, action, mac string, port int, poweredDeviceMAC string) controlButton {

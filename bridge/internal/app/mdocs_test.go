@@ -8,14 +8,14 @@ import (
 
 func TestParseDescSupportsPrometheusUnitField(t *testing.T) {
 	desc := prometheus.NewDesc(
-		"omada_test_temperature_celsius",
+		"net_test_temperature_celsius",
 		"Test metric.",
 		[]string{"site", "device_mac"},
 		nil,
 	)
 
 	name, help, labels := parseDesc(desc.String())
-	if name != "omada_test_temperature_celsius" {
+	if name != "net_test_temperature_celsius" {
 		t.Fatalf("name = %q", name)
 	}
 	if help != "Test metric." {

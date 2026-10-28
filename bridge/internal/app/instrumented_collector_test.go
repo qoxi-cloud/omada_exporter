@@ -59,14 +59,14 @@ func TestInstrumentedCollectorRecoversPanic(t *testing.T) {
 		}
 	}
 
-	if values["omada_collector_last_scrape_completed"] != 0 {
-		t.Fatalf("last scrape completed = %v, want 0", values["omada_collector_last_scrape_completed"])
+	if values["net_collector_last_scrape_completed"] != 0 {
+		t.Fatalf("last scrape completed = %v, want 0", values["net_collector_last_scrape_completed"])
 	}
-	if values["omada_collector_panics_total"] != 1 {
-		t.Fatalf("panics total = %v, want 1", values["omada_collector_panics_total"])
+	if values["net_collector_panics_total"] != 1 {
+		t.Fatalf("panics total = %v, want 1", values["net_collector_panics_total"])
 	}
-	if values["omada_collector_last_scrape_duration_seconds"] < 0 {
-		t.Fatalf("duration = %v, want non-negative", values["omada_collector_last_scrape_duration_seconds"])
+	if values["net_collector_last_scrape_duration_seconds"] < 0 {
+		t.Fatalf("duration = %v, want non-negative", values["net_collector_last_scrape_duration_seconds"])
 	}
 }
 
