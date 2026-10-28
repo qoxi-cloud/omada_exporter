@@ -12,7 +12,8 @@ import (
 // are now vendor-neutral (net_*). Anything still retained under an old prefix
 // is removed once at startup so Home Assistant does not keep duplicate,
 // never-updated entities around.
-var legacyMetricPrefixes = []string{"net_"}
+// built by concatenation so a blanket vendor-prefix rename never rewrites it
+var legacyMetricPrefixes = []string{"omada" + "_"}
 
 func isLegacyMetric(name string) bool {
 	for _, prefix := range legacyMetricPrefixes {
@@ -24,7 +25,7 @@ func isLegacyMetric(name string) bool {
 }
 
 func isLegacyUniqueID(uniqueID string) bool {
-	return strings.HasPrefix(uniqueID, "net_client_") || strings.HasPrefix(uniqueID, "omada_exporter_")
+	return strings.HasPrefix(uniqueID, "omada"+"_client_") || strings.HasPrefix(uniqueID, "omada"+"_exporter_")
 }
 
 // purgeLegacyEntities clears retained discovery/state records that still use a
@@ -61,6 +62,7 @@ func (p *Publisher) purgeLegacyEntities() {
 		trackers = append(trackers, topic)
 	}
 	p.mu.Unlock()
+	log.Info().Int("legacy_entities", len(victims)).Int("legacy_trackers", len(trackers)).Msg("legacy-prefixed retained records to purge")
 
 	for _, v := range victims {
 		if v.metric == "" {

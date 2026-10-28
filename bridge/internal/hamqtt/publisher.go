@@ -162,6 +162,9 @@ func (p *Publisher) Run(ctx context.Context) error {
 	if err := ctx.Err(); err != nil {
 		return err
 	}
+	p.mu.Lock()
+	log.Info().Int("discovery", len(p.retainedDiscovery)).Int("states", len(p.retainedStates)).Int("legacy_trackers", len(p.legacyTrackerDiscovery)).Bool("loaded", p.retainedLoaded).Msg("retained mqtt inventory")
+	p.mu.Unlock()
 	p.purgeLegacyEntities()
 	p.publishAll()
 
