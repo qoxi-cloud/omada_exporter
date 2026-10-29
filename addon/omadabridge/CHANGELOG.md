@@ -1,3 +1,6 @@
+## 2.4.4-qoxi.13
+- Virtual WAN latency: 5 probes 400 ms apart, the WAN reports the best RTT (not the average), and a fully lost burst is retried once. ISP gateways answer ICMP from their control plane: one uplink showed 45–80 ms every ~3 min and occasional silent bursts while the link itself sat at 2 ms, which flipped the dashboard tile orange and to "—".
+
 ## 2.4.4-qoxi.12
 - Back to the qoxi.9 footprint: no `host_network`, `NET_RAW` only, no iproute2. Nothing of the speed test remains.
 

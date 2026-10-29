@@ -21,14 +21,30 @@ func virtualWanPingEnabled() bool {
 	return v == "" || v == "1" || v == "true" || v == "yes"
 }
 
+// ISP gateways answer ICMP from their control plane, not the forwarding path:
+// one of the uplinks here sits at 2 ms but every ~3 minutes a whole burst comes
+// back at 45–80 ms, and now and then a burst is dropped entirely. The link
+// latency is therefore the *minimum* of a short, spaced burst, and a fully
+// lost burst is retried once before the WAN is reported as not answering.
 const (
-	vwanPingCount    = 3
-	vwanPingInterval = 200 * time.Millisecond
-	vwanPingTimeout  = 2 * time.Second
+	vwanPingCount    = 5
+	vwanPingInterval = 400 * time.Millisecond
+	vwanPingTimeout  = 4 * time.Second
+	vwanPingRetries  = 1
+	vwanRetryPause   = 500 * time.Millisecond
 )
 
-// pingGatewayMs returns the average RTT in milliseconds to ip, or 0 when the
-// host does not answer or pinging is impossible (no raw-socket permission).
+// rttMs picks the latency a burst stands for: the best round trip in
+// milliseconds, or 0 when nothing came back.
+func rttMs(st *probing.Statistics) float64 {
+	if st == nil || st.PacketsRecv == 0 {
+		return 0
+	}
+	return float64(st.MinRtt) / float64(time.Millisecond)
+}
+
+// pingGatewayMs returns the best RTT in milliseconds to ip, or 0 when the host
+// does not answer or pinging is impossible (no raw-socket permission).
 func pingGatewayMs(ip string) float64 {
 	if ip == "" || ip == "0.0.0.0" {
 		return 0
@@ -45,25 +61,34 @@ func pingGatewayMs(ip string) float64 {
 		if err := p.Run(); err != nil {
 			return 0, err
 		}
-		st := p.Statistics()
-		if st == nil || st.PacketsRecv == 0 {
-			return 0, nil
+		return rttMs(p.Statistics()), nil
+	}
+	privileged := true
+	var ms float64
+	for attempt := 0; attempt <= vwanPingRetries; attempt++ {
+		if attempt > 0 {
+			time.Sleep(vwanRetryPause)
 		}
-		return float64(st.AvgRtt) / float64(time.Millisecond), nil
+		var err error
+		ms, err = run(privileged)
+		if err != nil && privileged {
+			privileged = false
+			ms, err = run(privileged)
+		}
+		if err != nil {
+			log.Warn().Err(err).Str("ip", ip).Msg("virtual WAN gateway ping failed")
+			return 0
+		}
+		if ms > 0 {
+			return ms
+		}
 	}
-	ms, err := run(true)
-	if err != nil {
-		ms, err = run(false)
-	}
-	if err != nil {
-		log.Warn().Err(err).Str("ip", ip).Msg("virtual WAN gateway ping failed")
-		return 0
-	}
-	return ms
+	log.Debug().Str("ip", ip).Msg("virtual WAN gateway did not answer")
+	return 0
 }
 
 // pingVirtualWans probes every virtual WAN gateway concurrently and returns
-// name → average RTT (ms).
+// name → best RTT (ms).
 func pingVirtualWans(vws []model.VirtualWan) map[string]float64 {
 	out := map[string]float64{}
 	if !virtualWanPingEnabled() || len(vws) == 0 {
