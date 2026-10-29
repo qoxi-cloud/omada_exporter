@@ -21,6 +21,8 @@ ENV CGO_ENABLED=0 GOFLAGS=-buildvcs=false
 RUN go build -trimpath -ldflags="-s -w" -o /omada-exporter .
 
 FROM ${BUILD_FROM}
+# iproute2 only for the one-time removal of the qoxi.10 host aliases (run.sh)
+RUN apk add --no-cache iproute2
 COPY --from=builder /omada-exporter /usr/bin/omada-exporter
 COPY run.sh /run.sh
 RUN chmod a+x /run.sh /usr/bin/omada-exporter

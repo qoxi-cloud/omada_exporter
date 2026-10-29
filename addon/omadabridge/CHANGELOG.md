@@ -1,3 +1,9 @@
+## 2.4.4-qoxi.11
+- Speed test removed (reverted qoxi.10: no Ookla CLI, no `speedtest_*` options, no `net_wan_speedtest_*` metrics). This release still runs with `host_network` + `NET_ADMIN` once, to remove the host aliases 172.21.9.202–204 that qoxi.10 added.
+
+## 2.4.4-qoxi.10
+- Per-WAN speed test: the add-on binds the Ookla CLI to one source address per WAN (`speedtest_sources`, aliases added on the host interface at start) and publishes `net_wan_speedtest_download_mbps`, `_upload_mbps`, `_latency_ms`, `_jitter_ms`, `_packet_loss_percentage`, `_last_run_timestamp` every `speedtest_interval_minutes` (default 60). Requires `host_network` + `NET_ADMIN` and one policy-routing rule per source address on the gateway.
+
 ## 2.4.4-qoxi.9
 - Removed the one-time startup purge of `omada_*` retained records (migration helper, no longer needed). Client retention unchanged.
 
