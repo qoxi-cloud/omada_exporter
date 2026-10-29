@@ -52,7 +52,4 @@ type Config struct {
 	MQTTExpireAfter             int
 	MQTTTrackedClientMACs       string
 	MQTTClientRetentionHours    int
-	SpeedtestIntervalMinutes    int
-	SpeedtestSources            string
-	SpeedtestBinary             string
 }

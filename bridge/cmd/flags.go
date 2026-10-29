@@ -45,9 +45,6 @@ func configFlags(conf *config.Config) []cli.Flag {
 		&cli.BoolFlag{Destination: &conf.MQTTRetain, Name: "mqtt-retain", Value: true, Usage: "Publish MQTT discovery and state messages as retained.", Sources: cli.EnvVars("OMADA_MQTT_RETAIN")},
 		&cli.IntFlag{Destination: &conf.MQTTExpireAfter, Name: "mqtt-expire-after", Value: 180, Usage: "Home Assistant sensor expire_after value in seconds. Set 0 to disable.", Sources: cli.EnvVars("OMADA_MQTT_EXPIRE_AFTER"), Validator: nonNegativeSeconds("mqtt-expire-after")},
 		&cli.IntFlag{Destination: &conf.MQTTClientRetentionHours, Name: "mqtt-client-retention-hours", Value: 168, Usage: "Remove Home Assistant entities and trackers of clients not seen for this many hours. Set 0 to keep them forever.", Sources: cli.EnvVars("OMADA_MQTT_CLIENT_RETENTION_HOURS")},
-		&cli.IntFlag{Destination: &conf.SpeedtestIntervalMinutes, Name: "speedtest-interval-minutes", Value: 60, Usage: "Run an Ookla speed test per configured source address this often. Set 0 to disable.", Sources: cli.EnvVars("OMADA_SPEEDTEST_INTERVAL_MINUTES"), Validator: nonNegativeInt("speedtest-interval-minutes")},
-		&cli.StringFlag{Destination: &conf.SpeedtestSources, Name: "speedtest-sources", Value: "", Usage: "Comma-separated WAN=source_ip pairs; each source address must be policy-routed by the gateway to that WAN.", Sources: cli.EnvVars("OMADA_SPEEDTEST_SOURCES")},
-		&cli.StringFlag{Destination: &conf.SpeedtestBinary, Name: "speedtest-bin", Value: "/usr/bin/speedtest", Usage: "Path to the Ookla speedtest CLI.", Sources: cli.EnvVars("OMADA_SPEEDTEST_BIN")},
 		&cli.StringFlag{Destination: &conf.MQTTTrackedClientMACs, Name: "mqtt-tracked-client-macs", Value: "", Usage: "Comma-separated client MAC addresses to publish Home Assistant device trackers for even when offline.", Sources: cli.EnvVars("OMADA_MQTT_TRACKED_CLIENT_MACS")},
 	}
 	for _, flag := range flags {

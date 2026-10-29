@@ -1160,17 +1160,13 @@ func sensorHints(name string, metricType dto.MetricType) map[string]any {
 	}
 
 	switch {
-	case strings.HasSuffix(lower, "_timestamp"):
-		// unix seconds are not a measurement series; HA's timestamp class
-		// wants ISO strings, so leave the state plain
-		delete(hints, "state_class")
 	case strings.HasSuffix(lower, "_bytes"):
 		hints["unit_of_measurement"] = "B"
 		hints["device_class"] = "data_size"
 	case strings.HasSuffix(lower, "_seconds") || strings.HasSuffix(lower, "_uptime"):
 		hints["unit_of_measurement"] = "s"
 		hints["device_class"] = "duration"
-	case strings.Contains(lower, "latency"), strings.HasSuffix(lower, "_jitter_ms"):
+	case strings.Contains(lower, "latency"):
 		hints["unit_of_measurement"] = "ms"
 		hints["device_class"] = "duration"
 	case strings.Contains(lower, "percentage") || strings.HasSuffix(lower, "_pct") || strings.HasSuffix(lower, "_util"):

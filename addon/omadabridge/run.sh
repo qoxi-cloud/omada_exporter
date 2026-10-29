@@ -48,31 +48,6 @@ else
   bashio::exit.nok "No MQTT broker: install the Mosquitto add-on or set mqtt_host/mqtt_user/mqtt_pass"
 fi
 
-# Speed test: one source address per WAN; the gateway policy-routes each
-# address to its WAN, so the Ookla CLI bound to that address measures one ISP.
-export OMADA_SPEEDTEST_INTERVAL_MINUTES="$(bashio::config 'speedtest_interval_minutes')"
-export OMADA_SPEEDTEST_BIN="/usr/bin/speedtest"
-sources=""
-if bashio::config.has_value 'speedtest_sources'; then
-  iface="$(ip -4 route get 1.1.1.1 2>/dev/null | sed -n 's/.* dev \([^ ]*\).*/\1/p' | head -1)"
-  prefix="$(ip -4 -o addr show dev "${iface}" scope global 2>/dev/null | head -1 | sed -n 's|.* inet [0-9.]*/\([0-9]*\) .*|\1|p')"
-  for key in $(bashio::config 'speedtest_sources|keys'); do
-    wan="$(bashio::config "speedtest_sources[${key}].wan")"
-    ip_addr="$(bashio::config "speedtest_sources[${key}].ip")"
-    sources="${sources:+${sources},}${wan}=${ip_addr}"
-    if [ -z "${iface}" ] || [ -z "${prefix}" ]; then
-      bashio::log.warning "speedtest: cannot determine host interface/prefix, not adding alias ${ip_addr}"
-    elif ip -4 -o addr show dev "${iface}" | grep -q " ${ip_addr}/"; then
-      bashio::log.info "speedtest: alias ${ip_addr} already on ${iface}"
-    elif ip addr add "${ip_addr}/${prefix}" dev "${iface}" 2>/dev/null; then
-      bashio::log.info "speedtest: added alias ${ip_addr}/${prefix} on ${iface} for ${wan}"
-    else
-      bashio::log.warning "speedtest: failed to add alias ${ip_addr}/${prefix} on ${iface} (NET_ADMIN + host_network required)"
-    fi
-  done
-fi
-export OMADA_SPEEDTEST_SOURCES="${sources}"
-
 # never enable device controls from this add-on: monitoring only
 unset OMADA_ALLOW_DEVICE_CONTROL
 
