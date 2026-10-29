@@ -1,3 +1,6 @@
+## 2.4.4-qoxi.12
+- Back to the qoxi.9 footprint: no `host_network`, `NET_RAW` only, no iproute2. Nothing of the speed test remains.
+
 ## 2.4.4-qoxi.11
 - Speed test removed (reverted qoxi.10: no Ookla CLI, no `speedtest_*` options, no `net_wan_speedtest_*` metrics). This release still runs with `host_network` + `NET_ADMIN` once, to remove the host aliases 172.21.9.202–204 that qoxi.10 added.
 

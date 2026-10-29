@@ -48,20 +48,6 @@ else
   bashio::exit.nok "No MQTT broker: install the Mosquitto add-on or set mqtt_host/mqtt_user/mqtt_pass"
 fi
 
-# one-time cleanup: qoxi.10 added per-WAN source aliases on the host interface
-iface="$(ip -4 route get 1.1.1.1 2>/dev/null | sed -n 's/.* dev \([^ ]*\).*/\1/p' | head -1)"
-for ip_addr in 172.21.9.202 172.21.9.203 172.21.9.204; do
-  if [ -n "${iface}" ] && ip -4 -o addr show dev "${iface}" | grep -q " ${ip_addr}/"; then
-    if ip -4 addr del "${ip_addr}/24" dev "${iface}" 2>/dev/null; then
-      bashio::log.info "cleanup: removed alias ${ip_addr}/24 from ${iface}"
-    else
-      bashio::log.warning "cleanup: failed to remove alias ${ip_addr}/24 from ${iface}"
-    fi
-  else
-    bashio::log.info "cleanup: alias ${ip_addr} not present on ${iface:-?}"
-  fi
-done
-
 # never enable device controls from this add-on: monitoring only
 unset OMADA_ALLOW_DEVICE_CONTROL
 
