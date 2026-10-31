@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"reflect"
+	"strings"
 	"testing"
 	"testing/synctest"
 	"time"
@@ -947,3 +948,12 @@ func (retainedMessage) MessageID() uint16 {
 }
 func (m retainedMessage) Payload() []byte { return m.payload }
 func (retainedMessage) Ack()              {}
+
+func TestDiscoveryStripsLastUpdatedFromAttributes(t *testing.T) {
+	if !strings.Contains(attributesTemplate, "last_updated") {
+		t.Fatal("attributes template must filter last_updated")
+	}
+	if !strings.HasPrefix(attributesTemplate, "{{") || !strings.HasSuffix(attributesTemplate, "}}") {
+		t.Fatal("attributes template must be a Jinja expression")
+	}
+}

@@ -292,6 +292,9 @@ func (p *Publisher) publishAll() {
 	p.reconcileSupersededEntities(currentEntities)
 }
 
+// attributesTemplate strips the volatile last_updated field from the entity attributes.
+const attributesTemplate = "{{ dict(value_json.items() | rejectattr('0', 'eq', 'last_updated')) | to_json }}"
+
 // publishDiscovery publishes Home Assistant discovery data for a metric entity.
 func (p *Publisher) publishDiscovery(ent entity, metricType dto.MetricType) {
 	p.mu.Lock()
@@ -311,10 +314,14 @@ func (p *Publisher) publishDiscovery(ent entity, metricType dto.MetricType) {
 		"state_topic":           ent.StateTopic,
 		"value_template":        "{{ value_json.value }}",
 		"json_attributes_topic": ent.StateTopic,
-		"availability_topic":    p.availabilityTopic,
-		"payload_available":     "online",
-		"payload_not_available": "offline",
-		"device":                ent.Device,
+		// the state payload carries a per-poll timestamp for the bridge's own client
+		// retention bookkeeping; keep it out of the HA attributes, otherwise every poll
+		// turns into a new recorder row (state + attributes JSON) for every entity
+		"json_attributes_template": attributesTemplate,
+		"availability_topic":       p.availabilityTopic,
+		"payload_available":        "online",
+		"payload_not_available":    "offline",
+		"device":                   ent.Device,
 		"origin": map[string]any{
 			"name":        "omada_exporter",
 			"sw_version":  "omada_exporter",

@@ -1,3 +1,7 @@
+## 2.4.4-qoxi.14
+
+- Home Assistant attributes no longer carry the per-poll `last_updated` timestamp (`json_attributes_template` strips it; the state payload keeps it for client retention). Without this every bridge entity produced a new recorder row every poll — ~1.3M rows / 1.7 GB per half day on PostgreSQL.
+
 ## 2.4.4-qoxi.13
 - Virtual WAN latency: 5 probes 400 ms apart, the WAN reports the best RTT (not the average), and a fully lost burst is retried once. ISP gateways answer ICMP from their control plane: one uplink showed 45–80 ms every ~3 min and occasional silent bursts while the link itself sat at 2 ms, which flipped the dashboard tile orange and to "—".
 
