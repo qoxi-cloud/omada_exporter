@@ -65,16 +65,19 @@ type retainedClientAttributes struct {
 
 // entity describes a Home Assistant entity generated from a metric.
 type entity struct {
-	Component      string
-	ObjectID       string
-	UniqueID       string
-	Name           string
-	DiscoveryTopic string
-	StateTopic     string
-	MetricName     string
-	Help           string
-	Labels         map[string]string
-	Device         map[string]any
+	Component string
+	ObjectID  string
+	UniqueID  string
+	// DefaultEntityID is the HA entity_id requested on first registration (per-client
+	// metrics only); empty means HA derives it from the device and entity names.
+	DefaultEntityID string
+	Name            string
+	DiscoveryTopic  string
+	StateTopic      string
+	MetricName      string
+	Help            string
+	Labels          map[string]string
+	Device          map[string]any
 }
 
 // metricSample stores the last observed metric value and timestamp.
@@ -292,8 +295,10 @@ func (p *Publisher) publishAll() {
 	p.reconcileSupersededEntities(currentEntities)
 }
 
-// attributesTemplate strips the volatile last_updated field from the entity attributes.
-const attributesTemplate = "{{ dict(value_json.items() | rejectattr('0', 'eq', 'last_updated')) | to_json }}"
+// attributesTemplate keeps per-poll fields out of the entity attributes: last_updated changes
+// every poll, and value duplicates the state, so either one defeats the recorder's
+// state_attributes dedup and writes a fresh attributes row with every state row.
+const attributesTemplate = "{{ dict(value_json.items() | rejectattr('0', 'in', ['last_updated', 'value'])) | to_json }}"
 
 // publishDiscovery publishes Home Assistant discovery data for a metric entity.
 func (p *Publisher) publishDiscovery(ent entity, metricType dto.MetricType) {
@@ -327,6 +332,12 @@ func (p *Publisher) publishDiscovery(ent entity, metricType dto.MetricType) {
 			"sw_version":  "omada_exporter",
 			"support_url": "https://github.com/RCooLeR/omada_exporter",
 		},
+	}
+
+	if ent.DefaultEntityID != "" {
+		// object_id is ignored by HA since 2026.4; default_entity_id replaces it
+		config["default_entity_id"] = ent.DefaultEntityID
+		delete(config, "object_id")
 	}
 
 	if ent.Component == "binary_sensor" {
@@ -394,16 +405,17 @@ func (p *Publisher) newMetricEntity(family *dto.MetricFamily, labels map[string]
 	objectID, discoveryTopic, stateTopic = p.canonicalEntityTopics(metricName, labels, component, objectID, discoveryTopic, stateTopic)
 
 	return entity{
-		Component:      component,
-		ObjectID:       objectID,
-		UniqueID:       "net_bridge_" + objectID,
-		Name:           friendlyMetricName(metricName, labels),
-		DiscoveryTopic: discoveryTopic,
-		StateTopic:     stateTopic,
-		MetricName:     metricName,
-		Help:           family.GetHelp(),
-		Labels:         labels,
-		Device:         deviceInfo(p.client, metricName, deviceLabels(metricName, labels, ctx)),
+		Component:       component,
+		ObjectID:        objectID,
+		UniqueID:        "net_bridge_" + objectID,
+		DefaultEntityID: p.clientEntityID(component, metricName, labels),
+		Name:            friendlyMetricName(metricName, labels),
+		DiscoveryTopic:  discoveryTopic,
+		StateTopic:      stateTopic,
+		MetricName:      metricName,
+		Help:            family.GetHelp(),
+		Labels:          labels,
+		Device:          deviceInfo(p.client, metricName, deviceLabels(metricName, labels, ctx)),
 	}
 }
 
@@ -418,17 +430,31 @@ func (p *Publisher) newDerivedEntity(metricName, help string, labels map[string]
 	objectID, discoveryTopic, stateTopic = p.canonicalEntityTopics(metricName, labels, "sensor", objectID, discoveryTopic, stateTopic)
 
 	return entity{
-		Component:      "sensor",
-		ObjectID:       objectID,
-		UniqueID:       "net_bridge_" + objectID,
-		Name:           friendlyMetricName(metricName, labels),
-		DiscoveryTopic: discoveryTopic,
-		StateTopic:     stateTopic,
-		MetricName:     metricName,
-		Help:           help,
-		Labels:         labels,
-		Device:         deviceInfo(p.client, metricName, deviceLabels(metricName, labels, ctx)),
+		Component:       "sensor",
+		ObjectID:        objectID,
+		UniqueID:        "net_bridge_" + objectID,
+		DefaultEntityID: p.clientEntityID("sensor", metricName, labels),
+		Name:            friendlyMetricName(metricName, labels),
+		DiscoveryTopic:  discoveryTopic,
+		StateTopic:      stateTopic,
+		MetricName:      metricName,
+		Help:            help,
+		Labels:          labels,
+		Device:          deviceInfo(p.client, metricName, deviceLabels(metricName, labels, ctx)),
 	}
+}
+
+// clientEntityID returns the entity_id HA should give a per-client metric entity:
+// <component>.net_client_<client id>_<metric without the net_client_ prefix>, the
+// same client id the device tracker uses. HA 2026.4 removed the MQTT object_id key,
+// and the name-based fallback collides for clients sharing a name (iphone_*_3,
+// lwip0_*_5). Site-level client aggregates and every non-client metric return "",
+// keeping HA's name-based ids for infrastructure entities unchanged.
+func (p *Publisher) clientEntityID(component, metricName string, labels map[string]string) string {
+	if !perClientMetric(metricName) || strings.TrimSpace(labels["mac"]) == "" {
+		return ""
+	}
+	return component + ".net_client_" + slug(p.clientTrackerID(labels)) + "_" + strings.TrimPrefix(metricName, "net_client_")
 }
 
 // clientTracker returns tracker metadata for metrics that represent clients.
@@ -648,7 +674,8 @@ func (p *Publisher) publishClientTrackerDiscovery(id string, tracker clientTrack
 	p.mu.Unlock()
 
 	config := map[string]any{
-		"name":      clientName(tracker.Labels),
+		// null = use the device name; repeating clientName here doubled it ("iPhone iPhone")
+		"name":      nil,
 		"unique_id": "net_client_" + id,
 		// HA 2026.4 dropped the MQTT "object_id" key (silently, via REMOVE_EXTRA); only
 		// default_entity_id sets the entity_id now. Without it HA derives the id from
@@ -1159,14 +1186,23 @@ func binaryDeviceClass(name string) string {
 	}
 }
 
+// perClientMetric reports whether a metric describes one client rather than the site.
+func perClientMetric(name string) bool {
+	return strings.HasPrefix(name, "net_client_") && name != "net_client_connected_total"
+}
+
 // sensorHints returns Home Assistant metadata hints for a metric.
 func sensorHints(name string, metricType dto.MetricType) map[string]any {
 	hints := map[string]any{}
 	lower := strings.ToLower(name)
 
-	if metricType == dto.MetricType_COUNTER {
+	// Per-client sensors are kept out of the recorder by policy; a state_class there only
+	// makes HA flag every one of them as "entity_not_recorded" in statistics validation.
+	switch {
+	case perClientMetric(name):
+	case metricType == dto.MetricType_COUNTER:
 		hints["state_class"] = "total_increasing"
-	} else {
+	default:
 		hints["state_class"] = "measurement"
 	}
 

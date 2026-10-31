@@ -124,7 +124,7 @@ func TestPoEControlPortsRemainDistinctAndLegacyIDsStayUnchanged(t *testing.T) {
 	p, provider, _ := poeControlFixture(t, "slobidska44")
 	legacy := controlButtonFor(t, p, controlReboot)
 	wantID := "net_control_" + p.controlSiteKey() + "_reboot_device_aa_bb_cc_dd_ee_01"
-	if legacy.Config["object_id"] != wantID || legacy.Payload != "PRESS" || !strings.HasSuffix(legacy.CommandTopic, "/reboot_device/aa_bb_cc_dd_ee_01/command") {
+	if legacy.Config["default_entity_id"] != "button."+wantID || legacy.Config["object_id"] != nil || legacy.Payload != "PRESS" || !strings.HasSuffix(legacy.CommandTopic, "/reboot_device/aa_bb_cc_dd_ee_01/command") {
 		t.Fatal("legacy identity or payload changed")
 	}
 	second := provider.poeTargets[0]
@@ -136,7 +136,7 @@ func TestPoEControlPortsRemainDistinctAndLegacyIDsStayUnchanged(t *testing.T) {
 	}
 	ids := map[string]bool{}
 	for _, button := range p.controls.buttons {
-		id := button.Config["object_id"].(string)
+		id := button.Config["default_entity_id"].(string)
 		if ids[id] {
 			t.Fatal("port identities collide")
 		}

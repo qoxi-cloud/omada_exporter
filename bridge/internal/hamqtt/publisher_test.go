@@ -144,8 +144,10 @@ func TestPublishConfiguredClientTrackerOffline(t *testing.T) {
 		t.Fatalf("failed to decode discovery payload: %v", err)
 	}
 
+	if name, ok := discovery["name"]; !ok || name != nil {
+		t.Fatalf("discovery[name] = %#v, want explicit null so the device name is not repeated", name)
+	}
 	for key, want := range map[string]any{
-		"name":              "aa:bb:cc:dd:ee:ff",
 		"unique_id":         "net_client_aa_bb_cc_dd_ee_ff",
 		"default_entity_id": "device_tracker.net_client_aa_bb_cc_dd_ee_ff",
 		"state_topic":       stateTopic,
@@ -959,5 +961,55 @@ func TestDiscoveryStripsLastUpdatedFromAttributes(t *testing.T) {
 	}
 	if !strings.HasPrefix(attributesTemplate, "{{") || !strings.HasSuffix(attributesTemplate, "}}") {
 		t.Fatal("attributes template must be a Jinja expression")
+	}
+}
+
+func TestClientMetricDiscoveryRequestsStableEntityID(t *testing.T) {
+	broker := &recordingMQTTClient{}
+	pub := scopeTestPublisher(t, "", broker)
+	discoveryFor := func(metric string, labels map[string]string) map[string]any {
+		t.Helper()
+		ent := pub.newMetricEntity(&dto.MetricFamily{Name: &metric}, labels, publishContext{})
+		pub.publishDiscovery(ent, dto.MetricType_GAUGE)
+		var config map[string]any
+		if err := json.Unmarshal(broker.messages[ent.DiscoveryTopic], &config); err != nil {
+			t.Fatalf("%s: decode discovery: %v", metric, err)
+		}
+		return config
+	}
+
+	client := map[string]string{"site_id": "site-1", "mac": "AA:BB:CC:DD:EE:FF", "name": "lwip0"}
+	for metric, want := range map[string]string{
+		"net_client_rssi_dbm":              "sensor.net_client_aa_bb_cc_dd_ee_ff_rssi_dbm",
+		"net_client_traffic_down_bytes":    "sensor.net_client_aa_bb_cc_dd_ee_ff_traffic_down_bytes",
+		"net_client_upload_activity_bytes": "sensor.net_client_aa_bb_cc_dd_ee_ff_upload_activity_bytes",
+	} {
+		config := discoveryFor(metric, client)
+		if config["default_entity_id"] != want {
+			t.Fatalf("%s default_entity_id = %#v, want %q", metric, config["default_entity_id"], want)
+		}
+		if _, ok := config["object_id"]; ok {
+			t.Fatalf("%s still sends object_id next to default_entity_id", metric)
+		}
+		if _, ok := config["state_class"]; ok {
+			t.Fatalf("%s sends state_class although client sensors are never recorded", metric)
+		}
+	}
+
+	for metric, labels := range map[string]map[string]string{
+		"net_port_link_status":       {"site_id": "site-1", "device_mac": "11:22:33:44:55:66", "port": "1"},
+		"net_device_cpu_percentage":  {"site_id": "site-1", "device_mac": "11:22:33:44:55:66"},
+		"net_client_connected_total": {"site_id": "site-1", "connection_mode": "wired"},
+	} {
+		config := discoveryFor(metric, labels)
+		if _, ok := config["default_entity_id"]; ok {
+			t.Fatalf("%s must keep HA's name-based entity_id, got default_entity_id %#v", metric, config["default_entity_id"])
+		}
+		if metric != "net_port_link_status" && config["state_class"] == nil {
+			t.Fatalf("%s lost its state_class; infrastructure history depends on it", metric)
+		}
+		if tpl, _ := config["json_attributes_template"].(string); !strings.Contains(tpl, "'value'") || !strings.Contains(tpl, "'last_updated'") {
+			t.Fatalf("%s attributes template %q must drop value and last_updated", metric, tpl)
+		}
 	}
 }

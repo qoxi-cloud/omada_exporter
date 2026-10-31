@@ -1,3 +1,11 @@
+## 2.4.4-qoxi.16
+
+- Per-client sensors get `default_entity_id: sensor.net_client_<mac>_<metric>` (same HA 2026.4 `object_id` removal as the trackers). Name-based ids collided between clients with equal names (`sensor.lwip0_client_rssi_dbm_2` … `_8`) and drifted on rename. Site aggregates (`net_client_connected_total`) and all infrastructure entities keep their name-based ids.
+- Per-client sensors no longer send `state_class`: they are kept out of the recorder, and HA flagged each of them as `entity_not_recorded` in statistics validation.
+- Control buttons send `default_entity_id: button.<control id>` instead of the ignored `object_id`.
+- Device trackers send `name: null`, so the friendly name is the device name once (was "iPhone iPhone").
+- `value` is stripped from HA attributes as well: it duplicates the state, so every state change also wrote a new `state_attributes` row.
+
 ## 2.4.4-qoxi.15
 
 - Client device trackers now get `default_entity_id: device_tracker.net_client_<mac>`. Home Assistant 2026.4 removed the MQTT `object_id` key (dropped silently), so trackers were being named `device_tracker.<name>_<name>` and could not be matched by a recorder glob. The ignored `object_id` is no longer sent for trackers. Only affects first registration; existing entities keep their registry id.

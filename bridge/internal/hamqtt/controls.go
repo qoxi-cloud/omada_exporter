@@ -244,7 +244,7 @@ func (p *Publisher) makeControlButton(target omada.ControlTarget) (controlButton
 	}
 	button.Config = map[string]any{
 		"name": name, "unique_id": p.discoveryNode() + "_" + p.controlObjectID(siteKey, action, mac, port, poweredDeviceMAC),
-		"object_id": p.controlObjectID(siteKey, action, mac, port, poweredDeviceMAC), "icon": icon,
+		"default_entity_id": "button." + p.controlObjectID(siteKey, action, mac, port, poweredDeviceMAC), "icon": icon,
 		"command_topic": button.CommandTopic, "payload_press": button.Payload, "qos": 0, "retain": false,
 		"json_attributes_topic": button.AttributesTopic, "entity_category": "config",
 		"availability_mode": "all",
