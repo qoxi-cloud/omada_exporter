@@ -648,9 +648,13 @@ func (p *Publisher) publishClientTrackerDiscovery(id string, tracker clientTrack
 	p.mu.Unlock()
 
 	config := map[string]any{
-		"name":                  clientName(tracker.Labels),
-		"unique_id":             "net_client_" + id,
-		"object_id":             "net_client_" + id,
+		"name":      clientName(tracker.Labels),
+		"unique_id": "net_client_" + id,
+		// HA 2026.4 dropped the MQTT "object_id" key (silently, via REMOVE_EXTRA); only
+		// default_entity_id sets the entity_id now. Without it HA derives the id from
+		// device name + entity name ("device_tracker.iphone_iphone"), which no recorder
+		// glob can tell apart from other trackers. Applies on first registration only.
+		"default_entity_id":     "device_tracker.net_client_" + slug(id),
 		"state_topic":           tracker.StateTopic,
 		"json_attributes_topic": tracker.AttributesTopic,
 		"source_type":           "router",

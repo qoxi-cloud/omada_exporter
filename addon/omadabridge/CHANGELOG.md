@@ -1,3 +1,7 @@
+## 2.4.4-qoxi.15
+
+- Client device trackers now get `default_entity_id: device_tracker.net_client_<mac>`. Home Assistant 2026.4 removed the MQTT `object_id` key (dropped silently), so trackers were being named `device_tracker.<name>_<name>` and could not be matched by a recorder glob. The ignored `object_id` is no longer sent for trackers. Only affects first registration; existing entities keep their registry id.
+
 ## 2.4.4-qoxi.14
 
 - Home Assistant attributes no longer carry the per-poll `last_updated` timestamp (`json_attributes_template` strips it; the state payload keeps it for client retention). Without this every bridge entity produced a new recorder row every poll — ~1.3M rows / 1.7 GB per half day on PostgreSQL.

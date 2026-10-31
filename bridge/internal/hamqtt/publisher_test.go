@@ -145,16 +145,20 @@ func TestPublishConfiguredClientTrackerOffline(t *testing.T) {
 	}
 
 	for key, want := range map[string]any{
-		"name":         "aa:bb:cc:dd:ee:ff",
-		"unique_id":    "net_client_aa_bb_cc_dd_ee_ff",
-		"object_id":    "net_client_aa_bb_cc_dd_ee_ff",
-		"state_topic":  stateTopic,
-		"source_type":  "router",
-		"payload_home": "home",
+		"name":              "aa:bb:cc:dd:ee:ff",
+		"unique_id":         "net_client_aa_bb_cc_dd_ee_ff",
+		"default_entity_id": "device_tracker.net_client_aa_bb_cc_dd_ee_ff",
+		"state_topic":       stateTopic,
+		"source_type":       "router",
+		"payload_home":      "home",
 	} {
 		if discovery[key] != want {
 			t.Fatalf("discovery[%s] = %#v, want %#v", key, discovery[key], want)
 		}
+	}
+
+	if _, ok := discovery["object_id"]; ok {
+		t.Fatal("tracker discovery still sends object_id, which HA no longer honours")
 	}
 
 	attributesTopic := "omada_exporter/device_trackers/aa_bb_cc_dd_ee_ff/attributes"
